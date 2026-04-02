@@ -1,27 +1,41 @@
-# models.py
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+import sqlite3
+from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
-
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
 
 class ApprovalRepository:
     def __init__(self, database_url: str) -> None:
-        if not database_url:
-            raise ValueError("DATABASE_URL is required.")
-        self.database_url = self._normalize_database_url(database_url)
+        self.db_path = self._parse_database_url(database_url)
+
+    def _parse_database_url(self, database_url: str) -> Path:
+        prefix = "sqlite:///"
+        if database_url.startswith(prefix):
+            raw_path = database_url[len(prefix):]
+            return Path(raw_path)
+
+        if database_url.startswith("postgres://") or database_url.startswith("postgresql://"):
+            raise ValueError(
+                "This deployment is configured for SQLite on the Render persistent disk. "
+                "Use a sqlite:/// DATABASE_URL."
+            )
+
+        return Path(database_url)
+
+    def _connect(self) -> sqlite3.Connection:
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
 
     def initialize(self) -> None:
-        with psycopg2.connect(self.database_url) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with self._connect() as conn:
+            conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS approvals (
-                    id SERIAL PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     technician_name TEXT NOT NULL,
                     job_number TEXT NOT NULL,
                     customer_name TEXT NOT NULL,
@@ -30,17 +44,31 @@ class ApprovalRepository:
                     phone_number TEXT NOT NULL,
                     pdf_filename TEXT NOT NULL,
                     original_screenshot_filename TEXT,
-                    extraction_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-                    document_json JSONB NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'generated',
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    extraction_json TEXT,
+                    status TEXT NOT NULL DEFAULT 'generated'
                 )
                 """
             )
+            conn.commit()
+            self._ensure_column(conn, "approvals", "original_screenshot_filename", "TEXT")
+            self._ensure_column(conn, "approvals", "extraction_json", "TEXT")
+            self._ensure_column(conn, "approvals", "status", "TEXT NOT NULL DEFAULT 'generated'")
+
+    def _ensure_column(
+        self,
+        conn: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        column_sql: str,
+    ) -> None:
+        columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        existing = {row["name"] for row in columns}
+        if column_name not in existing:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}")
+            conn.commit()
 
     def create_approval(
         self,
-        *,
         technician_name: str,
         job_number: str,
         customer_name: str,
@@ -50,11 +78,10 @@ class ApprovalRepository:
         pdf_filename: str,
         original_screenshot_filename: str | None,
         extraction_json: str,
-        document_json: str,
         status: str,
     ) -> int:
-        with psycopg2.connect(self.database_url) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with self._connect() as conn:
+            cursor = conn.execute(
                 """
                 INSERT INTO approvals (
                     technician_name,
@@ -66,11 +93,9 @@ class ApprovalRepository:
                     pdf_filename,
                     original_screenshot_filename,
                     extraction_json,
-                    document_json,
                     status
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
-                RETURNING id
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     technician_name,
@@ -82,18 +107,19 @@ class ApprovalRepository:
                     pdf_filename,
                     original_screenshot_filename,
                     extraction_json,
-                    document_json,
                     status,
                 ),
             )
-            return int(cursor.fetchone()[0])
+            conn.commit()
+            return int(cursor.lastrowid)
 
     def get_approval(self, approval_id: int) -> dict[str, Any] | None:
-        with psycopg2.connect(self.database_url, cursor_factory=RealDictCursor) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with self._connect() as conn:
+            row = conn.execute(
                 """
                 SELECT
                     id,
+                    created_at,
                     technician_name,
                     job_number,
                     customer_name,
@@ -103,38 +129,14 @@ class ApprovalRepository:
                     pdf_filename,
                     original_screenshot_filename,
                     extraction_json,
-                    document_json,
-                    status,
-                    created_at
+                    status
                 FROM approvals
-                WHERE id = %s
+                WHERE id = ?
                 """,
                 (approval_id,),
-            )
-            record = cursor.fetchone()
-            if not record:
-                return None
+            ).fetchone()
 
-            approval = dict(record)
-            approval["extraction_json"] = self._coerce_json(approval.get("extraction_json"))
-            approval["document_json"] = self._coerce_json(approval.get("document_json"))
-            created_at = approval.get("created_at")
-            if isinstance(created_at, datetime):
-                approval["created_at"] = created_at.astimezone(timezone.utc)
-            return approval
+        if row is None:
+            return None
 
-    def _coerce_json(self, value: Any) -> dict[str, Any]:
-        if isinstance(value, dict):
-            return value
-        if isinstance(value, str) and value.strip():
-            return json.loads(value)
-        return {}
-
-    def _normalize_database_url(self, database_url: str) -> str:
-        if database_url.startswith("postgres://"):
-            return "postgresql://" + database_url[len("postgres://") :]
-
-        parsed = urlparse(database_url)
-        if parsed.scheme not in {"postgresql", "postgres"}:
-            raise ValueError("DATABASE_URL must be a PostgreSQL connection string.")
-        return database_url
+        return dict(row)
