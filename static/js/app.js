@@ -1,0 +1,547 @@
+(function () {
+  const workflowScreen = document.querySelector(".workflow-screen");
+  if (!workflowScreen) {
+    return;
+  }
+
+  const state = {
+    step: 1,
+    fields: {},
+    confidence: {},
+    warnings: [],
+    screenshotFilename: null,
+    extractionJson: {},
+    keepScreenshot: false,
+    downloadUrl: "",
+    shareMeta: null,
+    signatures: { customer: null, technician: null },
+  };
+
+  const elements = {
+    statusBanner: document.getElementById("statusBanner"),
+    extractForm: document.getElementById("extractForm"),
+    reviewForm: document.getElementById("reviewForm"),
+    screenshotInput: document.getElementById("screenshotInput"),
+    imagePreview: document.getElementById("imagePreview"),
+    previewImage: document.getElementById("previewImage"),
+    uploadStatus: document.getElementById("uploadStatus"),
+    dropzone: document.querySelector(".upload-dropzone"),
+    reviewWarnings: document.getElementById("reviewWarnings"),
+    stickyButton: document.getElementById("stickyPrimaryButton"),
+    stickyTitle: document.getElementById("stickyTitle"),
+    stickySubtitle: document.getElementById("stickySubtitle"),
+    keepScreenshot: document.getElementById("keepScreenshot"),
+    shareButton: document.getElementById("shareButton"),
+    restartButton: document.getElementById("restartButton"),
+    downloadButton: document.getElementById("downloadButton"),
+    successMessage: document.getElementById("successMessage"),
+  };
+
+  const cardsByStep = new Map(
+    Array.from(document.querySelectorAll("[data-step]")).map((node) => [Number(node.dataset.step), node])
+  );
+  const progressSteps = Array.from(document.querySelectorAll("[data-progress-step]"));
+  const reviewFields = [
+    "job_number",
+    "customer_name",
+    "service_address",
+    "city_state_zip",
+    "phone_number",
+    "work_phone_number",
+    "email",
+    "installation_date",
+    "technician_name",
+  ];
+  const requiredFields = [
+    "job_number",
+    "customer_name",
+    "service_address",
+    "city_state_zip",
+    "phone_number",
+    "installation_date",
+    "technician_name",
+  ];
+  const reviewInputs = Object.fromEntries(
+    reviewFields.map((name) => [name, document.querySelector(`[name="${name}"]`)]).filter(([, input]) => input)
+  );
+  const installationDateMirror = document.getElementById("installationDateDuplicate");
+  const initialTechnicianInput = document.getElementById("technicianNameInitial");
+  const customerPad = createSignaturePad(document.getElementById("customerSignaturePad"));
+  const technicianPad = createSignaturePad(document.getElementById("technicianSignaturePad"));
+
+  bindEvents();
+  syncInitialValues();
+  setStep(1);
+
+  function bindEvents() {
+    elements.screenshotInput.addEventListener("change", handleFileSelection);
+    elements.extractForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      extractInformation();
+    });
+    elements.reviewForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (validateReviewForm()) {
+        syncReviewState();
+        setStep(4);
+      }
+    });
+    Object.values(reviewInputs).forEach((input) => {
+      input.addEventListener("input", () => {
+        if (input.name === "technician_name") {
+          initialTechnicianInput.value = input.value;
+        }
+        if (input.name === "installation_date" && installationDateMirror) {
+          installationDateMirror.value = input.value;
+        }
+        input.classList.remove("is-invalid");
+        updateStickyAction();
+      });
+    });
+    if (installationDateMirror && reviewInputs.installation_date) {
+      installationDateMirror.addEventListener("input", () => {
+        reviewInputs.installation_date.value = installationDateMirror.value;
+        reviewInputs.installation_date.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+    elements.keepScreenshot.addEventListener("change", () => {
+      state.keepScreenshot = elements.keepScreenshot.checked;
+    });
+    document.getElementById("clearCustomerSignature").addEventListener("click", () => {
+      customerPad.clear();
+      state.signatures.customer = null;
+      updateStickyAction();
+    });
+    document.getElementById("clearTechnicianSignature").addEventListener("click", () => {
+      technicianPad.clear();
+      state.signatures.technician = null;
+      updateStickyAction();
+    });
+    customerPad.onChange = () => {
+      state.signatures.customer = customerPad.isEmpty() ? null : customerPad.toDataURL();
+      updateStickyAction();
+    };
+    technicianPad.onChange = () => {
+      state.signatures.technician = technicianPad.isEmpty() ? null : technicianPad.toDataURL();
+      updateStickyAction();
+    };
+    elements.stickyButton.addEventListener("click", handleStickyAction);
+    elements.shareButton.addEventListener("click", shareDocument);
+    elements.restartButton.addEventListener("click", restartFlow);
+    window.addEventListener("resize", () => {
+      customerPad.resize();
+      technicianPad.resize();
+    });
+  }
+
+  function syncInitialValues() {
+    const defaultTech = workflowScreen.dataset.defaultTech || "";
+    const today = workflowScreen.dataset.today || "";
+    if (reviewInputs.technician_name && !reviewInputs.technician_name.value) {
+      reviewInputs.technician_name.value = defaultTech;
+    }
+    if (reviewInputs.installation_date && !reviewInputs.installation_date.value) {
+      reviewInputs.installation_date.value = today;
+    }
+    if (installationDateMirror) {
+      installationDateMirror.value = reviewInputs.installation_date.value || today;
+    }
+  }
+
+  function handleFileSelection() {
+    const file = elements.screenshotInput.files[0];
+    elements.uploadStatus.textContent = file ? file.name : "No file selected";
+    elements.dropzone.classList.toggle("is-ready", Boolean(file));
+    if (!file) {
+      elements.imagePreview.hidden = true;
+      elements.previewImage.removeAttribute("src");
+      updateStickyAction();
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    elements.previewImage.src = url;
+    elements.imagePreview.hidden = false;
+    updateStickyAction();
+  }
+
+  function handleStickyAction() {
+    if (state.step === 1) {
+      elements.extractForm.requestSubmit();
+      return;
+    }
+    if (state.step === 3) {
+      elements.reviewForm.requestSubmit();
+      return;
+    }
+    if (state.step === 4) {
+      if (!state.signatures.customer) {
+        showStatus("error", "Customer signature required", "Please capture the customer signature to continue.");
+        return;
+      }
+      setStep(5);
+      return;
+    }
+    if (state.step === 5) {
+      if (!state.signatures.technician) {
+        showStatus("error", "Technician signature required", "Please capture the technician signature to continue.");
+        return;
+      }
+      generateDocument();
+      return;
+    }
+    if (state.step === 7 && state.downloadUrl) {
+      window.location.href = state.downloadUrl;
+    }
+  }
+
+  async function extractInformation() {
+    if (!elements.screenshotInput.files[0]) {
+      showStatus("error", "Screenshot required", "Select a screenshot before continuing.");
+      updateStickyAction();
+      return;
+    }
+
+    clearStatus();
+    setStep(2);
+    const formData = new FormData(elements.extractForm);
+    state.keepScreenshot = elements.keepScreenshot.checked;
+
+    try {
+      const response = await fetch("/api/customer-approval/extract", {
+        method: "POST",
+        headers: { "X-CSRF-Token": window.APP_CONFIG.csrfToken },
+        body: formData,
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to extract information.");
+      }
+
+      state.fields = payload.fields || {};
+      state.confidence = payload.confidence || {};
+      state.warnings = payload.warnings || [];
+      state.screenshotFilename = payload.meta ? payload.meta.screenshot_filename : null;
+      state.extractionJson = payload;
+
+      populateReviewForm();
+      renderWarnings();
+      showStatus("success", "Information extracted", "Review the details below before collecting signatures.");
+      setStep(3);
+    } catch (error) {
+      setStep(1);
+      showStatus("error", "Extraction could not be completed", error.message);
+    }
+  }
+
+  function populateReviewForm() {
+    Object.entries(reviewInputs).forEach(([name, input]) => {
+      const value = typeof state.fields[name] === "string" ? state.fields[name] : "";
+      if (value) {
+        input.value = value;
+      }
+      if (name === "technician_name" && !input.value) {
+        input.value = initialTechnicianInput.value.trim();
+      }
+      input.classList.remove("is-invalid");
+    });
+    if (installationDateMirror && reviewInputs.installation_date) {
+      installationDateMirror.value = reviewInputs.installation_date.value;
+    }
+    document.querySelectorAll("[data-confidence-for]").forEach((node) => {
+      const key = node.dataset.confidenceFor;
+      const confidence = state.confidence[key];
+      node.textContent = typeof confidence === "number" ? `Confidence ${Math.round(confidence * 100)}%` : "";
+    });
+  }
+
+  function renderWarnings() {
+    if (!state.warnings.length) {
+      elements.reviewWarnings.hidden = true;
+      elements.reviewWarnings.innerHTML = "";
+      return;
+    }
+    elements.reviewWarnings.hidden = false;
+    const items = state.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("");
+    elements.reviewWarnings.innerHTML = `<div class="status-card is-warning"><strong>Review recommended</strong><ul>${items}</ul></div>`;
+  }
+
+  function validateReviewForm() {
+    syncReviewState();
+    let isValid = true;
+    requiredFields.forEach((name) => {
+      const input = reviewInputs[name];
+      const hasValue = Boolean(input && input.value.trim());
+      input.classList.toggle("is-invalid", !hasValue);
+      isValid = isValid && hasValue;
+    });
+    if (!isValid) {
+      showStatus("error", "Required fields are missing", "Complete all required fields before continuing.");
+    } else {
+      clearStatus();
+    }
+    updateStickyAction();
+    return isValid;
+  }
+
+  function syncReviewState() {
+    Object.entries(reviewInputs).forEach(([name, input]) => {
+      state.fields[name] = input.value.trim();
+    });
+  }
+
+  async function generateDocument() {
+    syncReviewState();
+    setStep(6);
+    clearStatus();
+
+const payload = {
+fields: {
+  ...state.fields,
+  customer_signature: state.signatures.customer || "",
+  technician_signature: state.signatures.technician || "",
+},
+
+    try {
+      const response = await fetch("/api/customer-approval/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": window.APP_CONFIG.csrfToken,
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to generate the document.");
+      }
+
+      state.downloadUrl = result.download_url;
+      state.shareMeta = result.share || null;
+      elements.downloadButton.href = result.download_url;
+      elements.successMessage.textContent = result.message || "The approval PDF is ready for download or sharing.";
+      setStep(7);
+      showStatus("success", "Document ready", "The approval PDF has been generated successfully.");
+    } catch (error) {
+      setStep(5);
+      showStatus("error", "Document generation failed", error.message);
+    }
+  }
+
+  async function shareDocument() {
+    if (!state.downloadUrl) {
+      return;
+    }
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: state.shareMeta && state.shareMeta.title ? state.shareMeta.title : "Customer Approval",
+          text: "Customer approval document is ready.",
+          url: `${window.location.origin}${state.downloadUrl}`,
+        });
+        return;
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+    window.location.href = state.downloadUrl;
+  }
+
+  function restartFlow() {
+    state.step = 1;
+    state.fields = {};
+    state.confidence = {};
+    state.warnings = [];
+    state.screenshotFilename = null;
+    state.extractionJson = {};
+    state.downloadUrl = "";
+    state.shareMeta = null;
+    state.signatures.customer = null;
+    state.signatures.technician = null;
+    elements.extractForm.reset();
+    elements.reviewForm.reset();
+    elements.uploadStatus.textContent = "No file selected";
+    elements.dropzone.classList.remove("is-ready");
+    elements.imagePreview.hidden = true;
+    elements.previewImage.removeAttribute("src");
+    elements.reviewWarnings.hidden = true;
+    elements.reviewWarnings.innerHTML = "";
+    clearStatus();
+    customerPad.clear();
+    technicianPad.clear();
+    syncInitialValues();
+    setStep(1);
+  }
+
+  function setStep(step) {
+    state.step = step;
+    cardsByStep.forEach((node, nodeStep) => {
+      node.hidden = nodeStep !== step;
+    });
+    progressSteps.forEach((node) => {
+      const nodeStep = Number(node.dataset.progressStep);
+      const current = progressStepFor(step);
+      node.classList.toggle("is-active", nodeStep === current);
+      node.classList.toggle("is-complete", nodeStep < current);
+    });
+    if (step === 4) {
+      customerPad.resize();
+    }
+    if (step === 5) {
+      technicianPad.resize();
+    }
+    updateStickyAction();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function progressStepFor(step) {
+    if (step <= 2) return 1;
+    if (step === 3) return 3;
+    if (step === 4) return 4;
+    if (step === 5) return 5;
+    return 6;
+  }
+
+  function updateStickyAction() {
+    let title = "Upload Screenshot";
+    let subtitle = "Select a screenshot to continue.";
+    let label = "Extract Information";
+    let disabled = false;
+
+    if (state.step === 1) {
+      subtitle = elements.screenshotInput.files[0] ? "Ready to extract information." : "Select a screenshot to continue.";
+      disabled = !elements.screenshotInput.files[0];
+    } else if (state.step === 2) {
+      title = "Extracting Information";
+      subtitle = "Please wait while the screenshot is processed.";
+      label = "Processing";
+      disabled = true;
+    } else if (state.step === 3) {
+      title = "Review Details";
+      subtitle = "Confirm all required fields before continuing.";
+      label = "Continue";
+      disabled = !requiredFields.every((name) => reviewInputs[name] && reviewInputs[name].value.trim());
+    } else if (state.step === 4) {
+      title = "Customer Signature";
+      subtitle = state.signatures.customer ? "Signature captured and ready to continue." : "Customer signature is required.";
+      label = "Continue";
+      disabled = !state.signatures.customer;
+    } else if (state.step === 5) {
+      title = "Technician Signature";
+      subtitle = state.signatures.technician ? "Ready to generate the final document." : "Technician signature is required.";
+      label = "Generate Document";
+      disabled = !state.signatures.technician;
+    } else if (state.step === 6) {
+      title = "Generating Document";
+      subtitle = "Finalizing the approval PDF.";
+      label = "Generating";
+      disabled = true;
+    } else if (state.step === 7) {
+      title = "Document Ready";
+      subtitle = "Download the approval PDF or start a new approval.";
+      label = "Download PDF";
+      disabled = !state.downloadUrl;
+    }
+
+    elements.stickyTitle.textContent = title;
+    elements.stickySubtitle.textContent = subtitle;
+    elements.stickyButton.textContent = label;
+    elements.stickyButton.disabled = disabled;
+  }
+
+  function showStatus(type, title, message) {
+    elements.statusBanner.innerHTML = `<div class="status-card is-${type}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
+  }
+
+  function clearStatus() {
+    elements.statusBanner.innerHTML = "";
+  }
+
+  function createSignaturePad(canvas) {
+    const context = canvas.getContext("2d");
+    let drawing = false;
+    let hasStroke = false;
+
+    function resize() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const width = Math.max(canvas.parentElement.clientWidth - 2, 280);
+      const height = 220;
+      const previous = hasStroke ? canvas.toDataURL() : null;
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.lineWidth = 2.2;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.strokeStyle = "#102033";
+      context.clearRect(0, 0, width, height);
+      if (previous) {
+        const image = new Image();
+        image.onload = () => context.drawImage(image, 0, 0, width, height);
+        image.src = previous;
+      }
+    }
+
+    function point(event) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      drawing = true;
+      const current = point(event);
+      context.beginPath();
+      context.moveTo(current.x, current.y);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drawing) return;
+      event.preventDefault();
+      const current = point(event);
+      context.lineTo(current.x, current.y);
+      context.stroke();
+      hasStroke = true;
+      pad.onChange();
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((name) => {
+      canvas.addEventListener(name, (event) => {
+        if (!drawing) return;
+        event.preventDefault();
+        drawing = false;
+        context.closePath();
+        pad.onChange();
+      });
+    });
+
+    const pad = {
+      clear() {
+        hasStroke = false;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        pad.onChange();
+      },
+      isEmpty() {
+        return !hasStroke;
+      },
+      toDataURL() {
+        return canvas.toDataURL("image/png");
+      },
+      resize,
+      onChange() {},
+    };
+
+    resize();
+    return pad;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+})();

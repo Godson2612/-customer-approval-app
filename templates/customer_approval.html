@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Approval{% endblock %}
+
+{% block body %}
+  <main
+    class="screen workflow-screen"
+    data-default-tech="{{ technician_name }}"
+    data-today="{{ today }}"
+  >
+    <header class="workflow-header surface-card">
+      <a class="back-button" href="{{ url_for('home') }}" aria-label="Back to home">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path
+            d="M15 5.75 8.75 12 15 18.25"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+          />
+        </svg>
+      </a>
+      <div class="header-copy">
+        <div class="hero-badge">Approval Workflow</div>
+        <h1 class="page-title">Customer Approval</h1>
+        <p class="page-subtitle">Upload the job screenshot, review details, and capture both signatures.</p>
+      </div>
+    </header>
+
+    <section class="surface-card progress-card" aria-label="Workflow progress">
+      <div class="section-heading">
+        <h2>Progress</h2>
+        <p>Complete each step to unlock the final document.</p>
+      </div>
+      <ol class="progress-steps">
+        <li class="is-active" data-progress-step="1">Upload</li>
+        <li data-progress-step="3">Review</li>
+        <li data-progress-step="4">Customer Signature</li>
+        <li data-progress-step="5">Technician Signature</li>
+        <li data-progress-step="6">Generate</li>
+      </ol>
+    </section>
+
+    <section id="statusBanner" class="status-stack" aria-live="polite"></section>
+
+    <section class="step-stage">
+      <form id="extractForm" class="surface-card workflow-card is-active" data-step="1">
+        <div class="section-heading">
+          <h2>Upload Screenshot</h2>
+          <p>Use a clear screenshot or photo so the details can be extracted accurately.</p>
+        </div>
+
+        <div class="group-card">
+          <label class="field">
+            <span class="field-label">Technician Name</span>
+            <input
+              id="technicianNameInitial"
+              name="technician_name"
+              type="text"
+              autocomplete="name"
+              inputmode="text"
+              value="{{ technician_name }}"
+              placeholder="Enter technician name"
+            >
+          </label>
+
+          <label class="upload-dropzone" for="screenshotInput">
+            <input
+              id="screenshotInput"
+              name="screenshot"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+              capture="environment"
+              required
+            >
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                <path
+                  d="M6.75 9.25A4.25 4.25 0 0 1 11 5a4.23 4.23 0 0 1 4.05 2.98 3.75 3.75 0 1 1 1.2 7.3H15.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M12 20V11.25m0 0-2.75 2.75M12 11.25 14.75 14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                />
+              </svg>
+            </span>
+            <span class="upload-title">Tap to upload a screenshot</span>
+            <span class="upload-copy">PNG, JPG, WebP, or HEIC. Camera capture is also supported.</span>
+            <span id="uploadStatus" class="upload-status">No file selected</span>
+          </label>
+
+          <div id="imagePreview" class="image-preview" hidden>
+            <img id="previewImage" alt="Selected screenshot preview">
+          </div>
+
+          <label class="toggle-row">
+            <input id="keepScreenshot" name="keep_screenshot" type="checkbox" value="true">
+            <span>Keep the original screenshot after document generation</span>
+          </label>
+        </div>
+      </form>
+
+      <section id="loadingStep" class="surface-card workflow-card" data-step="2" hidden>
+        <div class="section-heading">
+          <h2>Extracting Information</h2>
+          <p>Please keep this screen open while the screenshot is processed.</p>
+        </div>
+        <div class="loading-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong>Preparing your review draft</strong>
+            <p>Analyzing the image and building the approval form.</p>
+          </div>
+        </div>
+      </section>
+
+      <form id="reviewForm" class="workflow-card" data-step="3" hidden>
+        <div class="section-heading surface-card">
+          <h2>Review Details</h2>
+          <p>Confirm the extracted information before collecting signatures.</p>
+        </div>
+
+        <div id="reviewWarnings" class="status-stack" hidden></div>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Job Details</h3>
+            <p>Core job information used in the final document.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Job Number</span>
+              <input id="jobNumber" name="job_number" type="text" required placeholder="Enter job number">
+              <span class="field-note" data-confidence-for="job_number"></span>
+            </label>
+            <label class="field">
+              <span class="field-label">Date of Installation</span>
+              <input id="installationDate" name="installation_date" type="text" value="{{ today }}" required placeholder="MM/DD/YYYY">
+            </label>
+          </div>
+        </section>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Customer Details</h3>
+            <p>Verify the customer contact and address information.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Customer Name</span>
+              <input id="customerName" name="customer_name" type="text" required placeholder="Enter customer name">
+              <span class="field-note" data-confidence-for="customer_name"></span>
+            </label>
+            <label class="field field-span-2">
+              <span class="field-label">Service Address</span>
+              <input id="serviceAddress" name="service_address" type="text" required placeholder="Enter service address">
+              <span class="field-note" data-confidence-for="service_address"></span>
+            </label>
+            <label class="field field-span-2">
+              <span class="field-label">City, State, ZIP</span>
+              <input id="cityStateZip" name="city_state_zip" type="text" required placeholder="City, State, ZIP">
+              <span class="field-note" data-confidence-for="city_state_zip"></span>
+            </label>
+            <label class="field">
+              <span class="field-label">Primary Phone Number</span>
+              <input id="phoneNumber" name="phone_number" type="tel" required placeholder="Enter phone number">
+              <span class="field-note" data-confidence-for="phone_number"></span>
+            </label>
+            <label class="field">
+              <span class="field-label">Work Phone Number</span>
+              <input id="workPhoneNumber" name="work_phone_number" type="tel" placeholder="Optional">
+              <span class="field-note" data-confidence-for="work_phone_number"></span>
+            </label>
+            <label class="field field-span-2">
+              <span class="field-label">Email</span>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="Optional email address">
+              <span class="field-note" data-confidence-for="email"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Installation Details</h3>
+            <p>Review the installation date used in the approval document.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Installation Date</span>
+              <input id="installationDateDuplicate" data-sync-target="installationDate" type="text" value="{{ today }}" placeholder="MM/DD/YYYY">
+            </label>
+          </div>
+        </section>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Technician Details</h3>
+            <p>Confirm the technician information before approval is signed.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Technician Name</span>
+              <input id="technicianName" name="technician_name" type="text" value="{{ technician_name }}" required placeholder="Enter technician name">
+            </label>
+          </div>
+        </section>
+      </form>
+
+      <section id="customerSignatureStep" class="surface-card workflow-card" data-step="4" hidden>
+        <div class="section-heading">
+          <h2>Customer Signature</h2>
+          <p>Customer signature is required before the document can be generated.</p>
+        </div>
+
+        <div class="signature-shell">
+          <div class="signature-head">
+            <div>
+              <h3>Customer Signature</h3>
+              <p>Ask the customer to sign clearly with one finger.</p>
+            </div>
+            <button id="clearCustomerSignature" class="secondary-button button-inline" type="button">Clear</button>
+          </div>
+          <div class="signature-card">
+            <canvas id="customerSignaturePad" class="signature-pad" aria-label="Customer signature pad"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="technicianSignatureStep" class="surface-card workflow-card" data-step="5" hidden>
+        <div class="section-heading">
+          <h2>Technician Signature</h2>
+          <p>Technician signature is required to finalize the approval record.</p>
+        </div>
+
+        <div class="signature-shell">
+          <div class="signature-head">
+            <div>
+              <h3>Technician Signature</h3>
+              <p>Sign to confirm the reviewed information and completion of the approval.</p>
+            </div>
+            <button id="clearTechnicianSignature" class="secondary-button button-inline" type="button">Clear</button>
+          </div>
+          <div class="signature-card">
+            <canvas id="technicianSignaturePad" class="signature-pad" aria-label="Technician signature pad"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="generateStep" class="surface-card workflow-card" data-step="6" hidden>
+        <div class="section-heading">
+          <h2>Generating Document</h2>
+          <p>Your approval PDF is being prepared with the reviewed details and signatures.</p>
+        </div>
+        <div class="loading-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong>Generating final PDF</strong>
+            <p>Creating a secure, flattened document for download.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="successStep" class="surface-card workflow-card" data-step="7" hidden>
+        <div class="success-hero">
+          <div class="success-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+              <path
+                d="m7.75 12.5 2.65 2.65 5.85-6.3"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.75"
+              />
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+          </div>
+          <h2>Document generated successfully</h2>
+          <p id="successMessage">The approval PDF is ready for download or sharing.</p>
+        </div>
+
+        <div class="action-stack">
+          <a id="downloadButton" class="primary-button" href="#" download>Download PDF</a>
+          <button id="shareButton" class="secondary-button" type="button">Share Document</button>
+          <button id="restartButton" class="ghost-button" type="button">Start New Approval</button>
+        </div>
+      </section>
+    </section>
+
+    <div class="sticky-action-bar">
+      <div class="sticky-action-inner">
+        <div class="sticky-copy">
+          <strong id="stickyTitle">Upload Screenshot</strong>
+          <span id="stickySubtitle">Select a screenshot to continue.</span>
+        </div>
+        <button id="stickyPrimaryButton" class="primary-button" type="button" disabled>Upload Screenshot</button>
+      </div>
+    </div>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% endblock %}
