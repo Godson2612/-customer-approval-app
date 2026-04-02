@@ -37,10 +37,17 @@
     successMessage: document.getElementById("successMessage"),
   };
 
+  let previewObjectUrl = null;
+
   const cardsByStep = new Map(
-    Array.from(document.querySelectorAll("[data-step]")).map((node) => [Number(node.dataset.step), node])
+    Array.from(document.querySelectorAll("[data-step]")).map((node) => [
+      Number(node.dataset.step),
+      node,
+    ])
   );
+
   const progressSteps = Array.from(document.querySelectorAll("[data-progress-step]"));
+
   const reviewFields = [
     "job_number",
     "customer_name",
@@ -52,6 +59,7 @@
     "installation_date",
     "technician_name",
   ];
+
   const requiredFields = [
     "job_number",
     "customer_name",
@@ -61,9 +69,13 @@
     "installation_date",
     "technician_name",
   ];
+
   const reviewInputs = Object.fromEntries(
-    reviewFields.map((name) => [name, document.querySelector(`[name="${name}"]`)]).filter(([, input]) => input)
+    reviewFields
+      .map((name) => [name, document.querySelector(`[name="${name}"]`)])
+      .filter(([, input]) => input)
   );
+
   const installationDateMirror = document.getElementById("installationDateDuplicate");
   const initialTechnicianInput = document.getElementById("technicianNameInitial");
   const customerPad = createSignaturePad(document.getElementById("customerSignaturePad"));
@@ -75,10 +87,12 @@
 
   function bindEvents() {
     elements.screenshotInput.addEventListener("change", handleFileSelection);
+
     elements.extractForm.addEventListener("submit", (event) => {
       event.preventDefault();
       extractInformation();
     });
+
     elements.reviewForm.addEventListener("submit", (event) => {
       event.preventDefault();
       if (validateReviewForm()) {
@@ -86,6 +100,7 @@
         setStep(4);
       }
     });
+
     Object.values(reviewInputs).forEach((input) => {
       input.addEventListener("input", () => {
         if (input.name === "technician_name") {
@@ -98,36 +113,44 @@
         updateStickyAction();
       });
     });
+
     if (installationDateMirror && reviewInputs.installation_date) {
       installationDateMirror.addEventListener("input", () => {
         reviewInputs.installation_date.value = installationDateMirror.value;
         reviewInputs.installation_date.dispatchEvent(new Event("input", { bubbles: true }));
       });
     }
+
     elements.keepScreenshot.addEventListener("change", () => {
       state.keepScreenshot = elements.keepScreenshot.checked;
     });
+
     document.getElementById("clearCustomerSignature").addEventListener("click", () => {
       customerPad.clear();
       state.signatures.customer = null;
       updateStickyAction();
     });
+
     document.getElementById("clearTechnicianSignature").addEventListener("click", () => {
       technicianPad.clear();
       state.signatures.technician = null;
       updateStickyAction();
     });
+
     customerPad.onChange = () => {
       state.signatures.customer = customerPad.isEmpty() ? null : customerPad.toDataURL();
       updateStickyAction();
     };
+
     technicianPad.onChange = () => {
       state.signatures.technician = technicianPad.isEmpty() ? null : technicianPad.toDataURL();
       updateStickyAction();
     };
+
     elements.stickyButton.addEventListener("click", handleStickyAction);
     elements.shareButton.addEventListener("click", shareDocument);
     elements.restartButton.addEventListener("click", restartFlow);
+
     window.addEventListener("resize", () => {
       customerPad.resize();
       technicianPad.resize();
@@ -137,12 +160,15 @@
   function syncInitialValues() {
     const defaultTech = workflowScreen.dataset.defaultTech || "";
     const today = workflowScreen.dataset.today || "";
+
     if (reviewInputs.technician_name && !reviewInputs.technician_name.value) {
       reviewInputs.technician_name.value = defaultTech;
     }
+
     if (reviewInputs.installation_date && !reviewInputs.installation_date.value) {
       reviewInputs.installation_date.value = today;
     }
+
     if (installationDateMirror) {
       installationDateMirror.value = reviewInputs.installation_date.value || today;
     }
@@ -152,16 +178,25 @@
     const file = elements.screenshotInput.files[0];
     elements.uploadStatus.textContent = file ? file.name : "No file selected";
     elements.dropzone.classList.toggle("is-ready", Boolean(file));
+
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+
     if (!file) {
       elements.imagePreview.hidden = true;
       elements.previewImage.removeAttribute("src");
       updateStickyAction();
       return;
     }
-    const url = URL.createObjectURL(file);
-    elements.previewImage.src = url;
+
+    previewObjectUrl = URL.createObjectURL(file);
+    elements.previewImage.src = previewObjectUrl;
     elements.imagePreview.hidden = false;
     updateStickyAction();
+
+    extractInformation();
   }
 
   function handleStickyAction() {
@@ -169,26 +204,38 @@
       elements.extractForm.requestSubmit();
       return;
     }
+
     if (state.step === 3) {
       elements.reviewForm.requestSubmit();
       return;
     }
+
     if (state.step === 4) {
       if (!state.signatures.customer) {
-        showStatus("error", "Customer signature required", "Please capture the customer signature to continue.");
+        showStatus(
+          "error",
+          "Customer signature required",
+          "Please capture the customer signature to continue."
+        );
         return;
       }
       setStep(5);
       return;
     }
+
     if (state.step === 5) {
       if (!state.signatures.technician) {
-        showStatus("error", "Technician signature required", "Please capture the technician signature to continue.");
+        showStatus(
+          "error",
+          "Technician signature required",
+          "Please capture the technician signature to continue."
+        );
         return;
       }
       generateDocument();
       return;
     }
+
     if (state.step === 7 && state.downloadUrl) {
       window.location.href = state.downloadUrl;
     }
@@ -212,7 +259,9 @@
         headers: { "X-CSRF-Token": window.APP_CONFIG.csrfToken },
         body: formData,
       });
+
       const payload = await response.json();
+
       if (!response.ok) {
         throw new Error(payload.error || "Unable to extract information.");
       }
@@ -225,7 +274,11 @@
 
       populateReviewForm();
       renderWarnings();
-      showStatus("success", "Information extracted", "Review the details below before collecting signatures.");
+      showStatus(
+        "success",
+        "Information extracted",
+        "Review the details below before collecting signatures."
+      );
       setStep(3);
     } catch (error) {
       setStep(1);
@@ -239,18 +292,23 @@
       if (value) {
         input.value = value;
       }
+
       if (name === "technician_name" && !input.value) {
         input.value = initialTechnicianInput.value.trim();
       }
+
       input.classList.remove("is-invalid");
     });
+
     if (installationDateMirror && reviewInputs.installation_date) {
       installationDateMirror.value = reviewInputs.installation_date.value;
     }
+
     document.querySelectorAll("[data-confidence-for]").forEach((node) => {
       const key = node.dataset.confidenceFor;
       const confidence = state.confidence[key];
-      node.textContent = typeof confidence === "number" ? `Confidence ${Math.round(confidence * 100)}%` : "";
+      node.textContent =
+        typeof confidence === "number" ? `Confidence ${Math.round(confidence * 100)}%` : "";
     });
   }
 
@@ -260,25 +318,37 @@
       elements.reviewWarnings.innerHTML = "";
       return;
     }
+
     elements.reviewWarnings.hidden = false;
-    const items = state.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("");
-    elements.reviewWarnings.innerHTML = `<div class="status-card is-warning"><strong>Review recommended</strong><ul>${items}</ul></div>`;
+    const items = state.warnings
+      .map((warning) => `<li>${escapeHtml(warning)}</li>`)
+      .join("");
+
+    elements.reviewWarnings.innerHTML =
+      `<div class="status-card is-warning"><strong>Review recommended</strong><ul>${items}</ul></div>`;
   }
 
   function validateReviewForm() {
     syncReviewState();
     let isValid = true;
+
     requiredFields.forEach((name) => {
       const input = reviewInputs[name];
       const hasValue = Boolean(input && input.value.trim());
       input.classList.toggle("is-invalid", !hasValue);
       isValid = isValid && hasValue;
     });
+
     if (!isValid) {
-      showStatus("error", "Required fields are missing", "Complete all required fields before continuing.");
+      showStatus(
+        "error",
+        "Required fields are missing",
+        "Complete all required fields before continuing."
+      );
     } else {
       clearStatus();
     }
+
     updateStickyAction();
     return isValid;
   }
@@ -294,12 +364,16 @@
     setStep(6);
     clearStatus();
 
-const payload = {
-fields: {
-  ...state.fields,
-  customer_signature: state.signatures.customer || "",
-  technician_signature: state.signatures.technician || "",
-},
+    const payload = {
+      fields: {
+        ...state.fields,
+        customer_signature: state.signatures.customer || "",
+        technician_signature: state.signatures.technician || "",
+      },
+      screenshot_filename: state.screenshotFilename,
+      delete_screenshot_after: !state.keepScreenshot,
+      extraction_json: state.extractionJson,
+    };
 
     try {
       const response = await fetch("/api/customer-approval/generate", {
@@ -310,7 +384,9 @@ fields: {
         },
         body: JSON.stringify(payload),
       });
+
       const result = await response.json();
+
       if (!response.ok) {
         throw new Error(result.error || "Unable to generate the document.");
       }
@@ -318,9 +394,15 @@ fields: {
       state.downloadUrl = result.download_url;
       state.shareMeta = result.share || null;
       elements.downloadButton.href = result.download_url;
-      elements.successMessage.textContent = result.message || "The approval PDF is ready for download or sharing.";
+      elements.successMessage.textContent =
+        result.message || "The approval PDF is ready for download or sharing.";
+
       setStep(7);
-      showStatus("success", "Document ready", "The approval PDF has been generated successfully.");
+      showStatus(
+        "success",
+        "Document ready",
+        "The approval PDF has been generated successfully."
+      );
     } catch (error) {
       setStep(5);
       showStatus("error", "Document generation failed", error.message);
@@ -331,10 +413,14 @@ fields: {
     if (!state.downloadUrl) {
       return;
     }
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: state.shareMeta && state.shareMeta.title ? state.shareMeta.title : "Customer Approval",
+          title:
+            state.shareMeta && state.shareMeta.title
+              ? state.shareMeta.title
+              : "Customer Approval",
           text: "Customer approval document is ready.",
           url: `${window.location.origin}${state.downloadUrl}`,
         });
@@ -345,6 +431,7 @@ fields: {
         }
       }
     }
+
     window.location.href = state.downloadUrl;
   }
 
@@ -359,6 +446,7 @@ fields: {
     state.shareMeta = null;
     state.signatures.customer = null;
     state.signatures.technician = null;
+
     elements.extractForm.reset();
     elements.reviewForm.reset();
     elements.uploadStatus.textContent = "No file selected";
@@ -367,6 +455,12 @@ fields: {
     elements.previewImage.removeAttribute("src");
     elements.reviewWarnings.hidden = true;
     elements.reviewWarnings.innerHTML = "";
+
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+
     clearStatus();
     customerPad.clear();
     technicianPad.clear();
@@ -376,21 +470,26 @@ fields: {
 
   function setStep(step) {
     state.step = step;
+
     cardsByStep.forEach((node, nodeStep) => {
       node.hidden = nodeStep !== step;
     });
+
     progressSteps.forEach((node) => {
       const nodeStep = Number(node.dataset.progressStep);
       const current = progressStepFor(step);
       node.classList.toggle("is-active", nodeStep === current);
       node.classList.toggle("is-complete", nodeStep < current);
     });
+
     if (step === 4) {
       customerPad.resize();
     }
+
     if (step === 5) {
       technicianPad.resize();
     }
+
     updateStickyAction();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -410,7 +509,9 @@ fields: {
     let disabled = false;
 
     if (state.step === 1) {
-      subtitle = elements.screenshotInput.files[0] ? "Ready to extract information." : "Select a screenshot to continue.";
+      subtitle = elements.screenshotInput.files[0]
+        ? "Ready to extract information."
+        : "Select a screenshot to continue.";
       disabled = !elements.screenshotInput.files[0];
     } else if (state.step === 2) {
       title = "Extracting Information";
@@ -421,15 +522,21 @@ fields: {
       title = "Review Details";
       subtitle = "Confirm all required fields before continuing.";
       label = "Continue";
-      disabled = !requiredFields.every((name) => reviewInputs[name] && reviewInputs[name].value.trim());
+      disabled = !requiredFields.every(
+        (name) => reviewInputs[name] && reviewInputs[name].value.trim()
+      );
     } else if (state.step === 4) {
       title = "Customer Signature";
-      subtitle = state.signatures.customer ? "Signature captured and ready to continue." : "Customer signature is required.";
+      subtitle = state.signatures.customer
+        ? "Signature captured and ready to continue."
+        : "Customer signature is required.";
       label = "Continue";
       disabled = !state.signatures.customer;
     } else if (state.step === 5) {
       title = "Technician Signature";
-      subtitle = state.signatures.technician ? "Ready to generate the final document." : "Technician signature is required.";
+      subtitle = state.signatures.technician
+        ? "Ready to generate the final document."
+        : "Technician signature is required.";
       label = "Generate Document";
       disabled = !state.signatures.technician;
     } else if (state.step === 6) {
@@ -451,7 +558,8 @@ fields: {
   }
 
   function showStatus(type, title, message) {
-    elements.statusBanner.innerHTML = `<div class="status-card is-${type}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
+    elements.statusBanner.innerHTML =
+      `<div class="status-card is-${type}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
   }
 
   function clearStatus() {
@@ -468,16 +576,19 @@ fields: {
       const width = Math.max(canvas.parentElement.clientWidth - 2, 280);
       const height = 220;
       const previous = hasStroke ? canvas.toDataURL() : null;
+
       canvas.width = Math.floor(width * ratio);
       canvas.height = Math.floor(height * ratio);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.lineWidth = 2.2;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.strokeStyle = "#102033";
       context.clearRect(0, 0, width, height);
+
       if (previous) {
         const image = new Image();
         image.onload = () => context.drawImage(image, 0, 0, width, height);
@@ -487,7 +598,10 @@ fields: {
 
     function point(event) {
       const rect = canvas.getBoundingClientRect();
-      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
     }
 
     canvas.addEventListener("pointerdown", (event) => {
@@ -497,6 +611,7 @@ fields: {
       context.beginPath();
       context.moveTo(current.x, current.y);
     });
+
     canvas.addEventListener("pointermove", (event) => {
       if (!drawing) return;
       event.preventDefault();
@@ -506,6 +621,7 @@ fields: {
       hasStroke = true;
       pad.onChange();
     });
+
     ["pointerup", "pointerleave", "pointercancel"].forEach((name) => {
       canvas.addEventListener(name, (event) => {
         if (!drawing) return;
