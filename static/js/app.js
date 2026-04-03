@@ -35,6 +35,8 @@
     restartButton: document.getElementById("restartButton"),
     downloadButton: document.getElementById("downloadButton"),
     successMessage: document.getElementById("successMessage"),
+    iosUploadHint: document.getElementById("iosUploadHint"),
+    openExternalButton: document.getElementById("openExternalButton"),
   };
 
   let previewObjectUrl = null;
@@ -81,29 +83,47 @@
   const customerPad = createSignaturePad(document.getElementById("customerSignaturePad"));
   const technicianPad = createSignaturePad(document.getElementById("technicianSignaturePad"));
 
+  setupUploadHint();
   bindEvents();
   syncInitialValues();
   setStep(1);
 
+  function setupUploadHint() {
+    const ua = navigator.userAgent || "";
+    const isiPhone = /iPhone|iPod/i.test(ua);
+    const isTelegramBrowser = /Telegram/i.test(ua);
+
+    if (elements.openExternalButton) {
+      elements.openExternalButton.href = window.location.href;
+    }
+
+    if (elements.iosUploadHint) {
+      elements.iosUploadHint.hidden = !(isiPhone && isTelegramBrowser);
+    }
+  }
+
   function bindEvents() {
-    elements.screenshotInput.addEventListener("change", handleFileSelection);
+    if (elements.screenshotInput) {
+      elements.screenshotInput.addEventListener("change", handleFileSelection);
+    }
 
-    elements.extractForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      extractInformation();
-    });
+    if (elements.extractForm) {
+      elements.extractForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        extractInformation();
+      });
+    }
 
-    elements.reviewForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (validateReviewForm()) {
-        syncReviewState();
-        setStep(4);
-      }
-    });
+    if (elements.reviewForm) {
+      elements.reviewForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        continueFromReview();
+      });
+    }
 
     Object.values(reviewInputs).forEach((input) => {
       input.addEventListener("input", () => {
-        if (input.name === "technician_name") {
+        if (input.name === "technician_name" && initialTechnicianInput) {
           initialTechnicianInput.value = input.value;
         }
 
@@ -223,6 +243,29 @@
       return;
     }
 
+    const allowedExtensions = [".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"];
+    const lowerName = file.name.toLowerCase();
+    const allowed = allowedExtensions.some((ext) => lowerName.endsWith(ext));
+
+    if (!allowed) {
+      showStatus(
+        "error",
+        "Unsupported file",
+        "Please choose a PNG, JPG, WebP, or HEIC screenshot."
+      );
+      if (elements.screenshotInput) {
+        elements.screenshotInput.value = "";
+      }
+      if (elements.uploadStatus) {
+        elements.uploadStatus.textContent = "No file selected";
+      }
+      if (elements.dropzone) {
+        elements.dropzone.classList.remove("is-ready");
+      }
+      updateStickyAction();
+      return;
+    }
+
     previewObjectUrl = URL.createObjectURL(file);
 
     if (elements.previewImage) {
@@ -238,16 +281,12 @@
 
   function handleStickyAction() {
     if (state.step === 1) {
-      if (elements.extractForm) {
-        elements.extractForm.requestSubmit();
-      }
+      extractInformation();
       return;
     }
 
     if (state.step === 3) {
-      if (elements.reviewForm) {
-        elements.reviewForm.requestSubmit();
-      }
+      continueFromReview();
       return;
     }
 
@@ -280,6 +319,15 @@
     if (state.step === 7 && state.downloadUrl) {
       window.location.href = state.downloadUrl;
     }
+  }
+
+  function continueFromReview() {
+    if (!validateReviewForm()) {
+      return;
+    }
+
+    syncReviewState();
+    setStep(4);
   }
 
   async function extractInformation() {
@@ -324,9 +372,11 @@
         "Review the details below before collecting signatures."
       );
       setStep(3);
+      scrollToTopSmooth();
     } catch (error) {
       setStep(1);
       showStatus("error", "Extraction could not be completed", error.message);
+      scrollToTopSmooth();
     }
   }
 
@@ -399,6 +449,7 @@
         "Required fields are missing",
         "Complete all required fields before continuing."
       );
+      scrollToFirstInvalidField();
     } else {
       clearStatus();
     }
@@ -463,9 +514,11 @@
         "Document ready",
         "The approval PDF has been generated successfully."
       );
+      scrollToTopSmooth();
     } catch (error) {
       setStep(5);
       showStatus("error", "Document generation failed", error.message);
+      scrollToTopSmooth();
     }
   }
 
@@ -546,6 +599,7 @@
     technicianPad.clear();
     syncInitialValues();
     setStep(1);
+    scrollToTopSmooth();
   }
 
   function setStep(step) {
@@ -571,7 +625,6 @@
     }
 
     updateStickyAction();
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function progressStepFor(step) {
@@ -593,9 +646,10 @@
     let disabled = false;
 
     if (state.step === 1) {
-      subtitle = elements.screenshotInput && elements.screenshotInput.files[0]
-        ? "Ready to extract information."
-        : "Select a screenshot to continue.";
+      subtitle =
+        elements.screenshotInput && elements.screenshotInput.files[0]
+          ? "Ready to extract information."
+          : "Select a screenshot to continue.";
       disabled = !(elements.screenshotInput && elements.screenshotInput.files[0]);
     } else if (state.step === 2) {
       title = "Extracting Information";
@@ -639,6 +693,20 @@
     elements.stickySubtitle.textContent = subtitle;
     elements.stickyButton.textContent = label;
     elements.stickyButton.disabled = disabled;
+  }
+
+  function scrollToTopSmooth() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function scrollToFirstInvalidField() {
+    const firstInvalid = document.querySelector(".is-invalid");
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstInvalid.focus({ preventScroll: true });
+    } else {
+      scrollToTopSmooth();
+    }
   }
 
   function showStatus(type, title, message) {

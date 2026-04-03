@@ -28,6 +28,16 @@
       </div>
     </header>
 
+    <section id="iosUploadHint" class="surface-card helper-card" hidden>
+      <div class="helper-copy">
+        <strong>iPhone upload tip</strong>
+        <p>If Telegram opens the camera instead of Photos, tap below to open this page in Safari and choose the screenshot there.</p>
+      </div>
+      <a id="openExternalButton" class="secondary-button helper-button" href="#" target="_blank" rel="noopener">
+        Open in Browser
+      </a>
+    </section>
+
     <section class="surface-card progress-card" aria-label="Workflow progress">
       <div class="section-heading">
         <h2>Progress</h2>
@@ -48,7 +58,7 @@
       <form id="extractForm" class="surface-card workflow-card is-active" data-step="1">
         <div class="section-heading">
           <h2>Upload Screenshot</h2>
-          <p>Use a clear screenshot or photo so the details can be extracted accurately.</p>
+          <p>Use a clear screenshot so the details can be extracted accurately.</p>
         </div>
 
         <div class="group-card">
@@ -70,8 +80,7 @@
               id="screenshotInput"
               name="screenshot"
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-              capture="environment"
+              accept=".png,.jpg,.jpeg,.webp,.heic,.heif"
               required
             >
             <span class="upload-icon" aria-hidden="true">
@@ -94,8 +103,8 @@
                 />
               </svg>
             </span>
-            <span class="upload-title">Tap to upload a screenshot</span>
-            <span class="upload-copy">PNG, JPG, WebP, or HEIC. Camera capture is also supported.</span>
+            <span class="upload-title">Choose a screenshot</span>
+            <span class="upload-copy">PNG, JPG, WebP, or HEIC. Select from Photos or Files.</span>
             <span id="uploadStatus" class="upload-status">No file selected</span>
           </label>
 
@@ -119,7 +128,7 @@
           <div class="spinner" aria-hidden="true"></div>
           <div>
             <strong>Preparing your review draft</strong>
-            <p>Analyzing the image and building the approval form.</p>
+            <p>Analyzing the screenshot and building the approval form.</p>
           </div>
         </div>
       </section>
@@ -161,26 +170,31 @@
               <input id="customerName" name="customer_name" type="text" required placeholder="Enter customer name">
               <span class="field-note" data-confidence-for="customer_name"></span>
             </label>
+
             <label class="field field-span-2">
               <span class="field-label">Service Address</span>
               <input id="serviceAddress" name="service_address" type="text" required placeholder="Enter service address">
               <span class="field-note" data-confidence-for="service_address"></span>
             </label>
+
             <label class="field field-span-2">
               <span class="field-label">City, State, ZIP</span>
               <input id="cityStateZip" name="city_state_zip" type="text" required placeholder="City, State, ZIP">
               <span class="field-note" data-confidence-for="city_state_zip"></span>
             </label>
+
             <label class="field">
               <span class="field-label">Primary Phone Number</span>
               <input id="phoneNumber" name="phone_number" type="tel" required placeholder="Enter phone number">
               <span class="field-note" data-confidence-for="phone_number"></span>
             </label>
+
             <label class="field">
               <span class="field-label">Work Phone Number</span>
               <input id="workPhoneNumber" name="work_phone_number" type="tel" placeholder="Optional">
               <span class="field-note" data-confidence-for="work_phone_number"></span>
             </label>
+
             <label class="field field-span-2">
               <span class="field-label">Email</span>
               <input id="email" name="email" type="email" autocomplete="email" placeholder="Optional email address">
@@ -197,7 +211,13 @@
           <div class="field-grid">
             <label class="field">
               <span class="field-label">Installation Date</span>
-              <input id="installationDateDuplicate" data-sync-target="installationDate" type="text" value="{{ today }}" placeholder="MM/DD/YYYY">
+              <input
+                id="installationDateDuplicate"
+                data-sync-target="installationDate"
+                type="text"
+                value="{{ today }}"
+                placeholder="MM/DD/YYYY"
+              >
             </label>
           </div>
         </section>
@@ -259,53 +279,37 @@
       <section id="generateStep" class="surface-card workflow-card" data-step="6" hidden>
         <div class="section-heading">
           <h2>Generating Document</h2>
-          <p>Your approval PDF is being prepared with the reviewed details and signatures.</p>
+          <p>Please wait while the signed approval PDF is being created.</p>
         </div>
         <div class="loading-card">
           <div class="spinner" aria-hidden="true"></div>
           <div>
-            <strong>Generating final PDF</strong>
-            <p>Creating a secure, flattened document for download.</p>
+            <strong>Building final PDF</strong>
+            <p>Saving reviewed data and embedding both signatures into the document.</p>
           </div>
         </div>
       </section>
 
       <section id="successStep" class="surface-card workflow-card" data-step="7" hidden>
-        <div class="success-hero">
-          <div class="success-badge" aria-hidden="true">
-            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-              <path
-                d="m7.75 12.5 2.65 2.65 5.85-6.3"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.75"
-              />
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
-            </svg>
-          </div>
-          <h2>Document generated successfully</h2>
+        <div class="section-heading">
+          <h2>Document Ready</h2>
           <p id="successMessage">The approval PDF is ready for download or sharing.</p>
         </div>
-
-        <div class="action-stack">
+        <div class="success-actions">
           <a id="downloadButton" class="primary-button" href="#" download>Download PDF</a>
-          <button id="shareButton" class="secondary-button" type="button">Share Document</button>
-          <button id="restartButton" class="ghost-button" type="button">Start New Approval</button>
+          <button id="shareButton" class="secondary-button" type="button">Share</button>
+          <button id="restartButton" class="secondary-button" type="button">Start New Approval</button>
         </div>
       </section>
     </section>
 
-    <div class="sticky-action-bar">
-      <div class="sticky-action-inner">
-        <div class="sticky-copy">
-          <strong id="stickyTitle">Upload Screenshot</strong>
-          <span id="stickySubtitle">Select a screenshot to continue.</span>
-        </div>
-        <button id="stickyPrimaryButton" class="primary-button" type="button" disabled>Upload Screenshot</button>
+    <aside class="sticky-action-bar surface-card">
+      <div class="sticky-copy">
+        <strong id="stickyTitle">Upload Screenshot</strong>
+        <p id="stickySubtitle">Select a screenshot to continue.</p>
       </div>
-    </div>
+      <button id="stickyPrimaryButton" class="primary-button" type="button">Extract Information</button>
+    </aside>
   </main>
 {% endblock %}
 
