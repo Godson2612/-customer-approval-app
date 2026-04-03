@@ -106,9 +106,11 @@
         if (input.name === "technician_name") {
           initialTechnicianInput.value = input.value;
         }
+
         if (input.name === "installation_date" && installationDateMirror) {
           installationDateMirror.value = input.value;
         }
+
         input.classList.remove("is-invalid");
         updateStickyAction();
       });
@@ -121,21 +123,29 @@
       });
     }
 
-    elements.keepScreenshot.addEventListener("change", () => {
-      state.keepScreenshot = elements.keepScreenshot.checked;
-    });
+    if (elements.keepScreenshot) {
+      elements.keepScreenshot.addEventListener("change", () => {
+        state.keepScreenshot = elements.keepScreenshot.checked;
+      });
+    }
 
-    document.getElementById("clearCustomerSignature").addEventListener("click", () => {
-      customerPad.clear();
-      state.signatures.customer = null;
-      updateStickyAction();
-    });
+    const clearCustomerButton = document.getElementById("clearCustomerSignature");
+    if (clearCustomerButton) {
+      clearCustomerButton.addEventListener("click", () => {
+        customerPad.clear();
+        state.signatures.customer = null;
+        updateStickyAction();
+      });
+    }
 
-    document.getElementById("clearTechnicianSignature").addEventListener("click", () => {
-      technicianPad.clear();
-      state.signatures.technician = null;
-      updateStickyAction();
-    });
+    const clearTechnicianButton = document.getElementById("clearTechnicianSignature");
+    if (clearTechnicianButton) {
+      clearTechnicianButton.addEventListener("click", () => {
+        technicianPad.clear();
+        state.signatures.technician = null;
+        updateStickyAction();
+      });
+    }
 
     customerPad.onChange = () => {
       state.signatures.customer = customerPad.isEmpty() ? null : customerPad.toDataURL();
@@ -147,9 +157,17 @@
       updateStickyAction();
     };
 
-    elements.stickyButton.addEventListener("click", handleStickyAction);
-    elements.shareButton.addEventListener("click", shareDocument);
-    elements.restartButton.addEventListener("click", restartFlow);
+    if (elements.stickyButton) {
+      elements.stickyButton.addEventListener("click", handleStickyAction);
+    }
+
+    if (elements.shareButton) {
+      elements.shareButton.addEventListener("click", shareDocument);
+    }
+
+    if (elements.restartButton) {
+      elements.restartButton.addEventListener("click", restartFlow);
+    }
 
     window.addEventListener("resize", () => {
       customerPad.resize();
@@ -172,12 +190,22 @@
     if (installationDateMirror) {
       installationDateMirror.value = reviewInputs.installation_date.value || today;
     }
+
+    if (initialTechnicianInput && !initialTechnicianInput.value) {
+      initialTechnicianInput.value = defaultTech;
+    }
   }
 
   function handleFileSelection() {
-    const file = elements.screenshotInput.files[0];
-    elements.uploadStatus.textContent = file ? file.name : "No file selected";
-    elements.dropzone.classList.toggle("is-ready", Boolean(file));
+    const file = elements.screenshotInput ? elements.screenshotInput.files[0] : null;
+
+    if (elements.uploadStatus) {
+      elements.uploadStatus.textContent = file ? file.name : "No file selected";
+    }
+
+    if (elements.dropzone) {
+      elements.dropzone.classList.toggle("is-ready", Boolean(file));
+    }
 
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
@@ -185,28 +213,41 @@
     }
 
     if (!file) {
-      elements.imagePreview.hidden = true;
-      elements.previewImage.removeAttribute("src");
+      if (elements.imagePreview) {
+        elements.imagePreview.hidden = true;
+      }
+      if (elements.previewImage) {
+        elements.previewImage.removeAttribute("src");
+      }
       updateStickyAction();
       return;
     }
 
     previewObjectUrl = URL.createObjectURL(file);
-    elements.previewImage.src = previewObjectUrl;
-    elements.imagePreview.hidden = false;
-    updateStickyAction();
 
+    if (elements.previewImage) {
+      elements.previewImage.src = previewObjectUrl;
+    }
+    if (elements.imagePreview) {
+      elements.imagePreview.hidden = false;
+    }
+
+    updateStickyAction();
     extractInformation();
   }
 
   function handleStickyAction() {
     if (state.step === 1) {
-      elements.extractForm.requestSubmit();
+      if (elements.extractForm) {
+        elements.extractForm.requestSubmit();
+      }
       return;
     }
 
     if (state.step === 3) {
-      elements.reviewForm.requestSubmit();
+      if (elements.reviewForm) {
+        elements.reviewForm.requestSubmit();
+      }
       return;
     }
 
@@ -242,7 +283,7 @@
   }
 
   async function extractInformation() {
-    if (!elements.screenshotInput.files[0]) {
+    if (!elements.screenshotInput || !elements.screenshotInput.files[0]) {
       showStatus("error", "Screenshot required", "Select a screenshot before continuing.");
       updateStickyAction();
       return;
@@ -250,13 +291,16 @@
 
     clearStatus();
     setStep(2);
+
     const formData = new FormData(elements.extractForm);
-    state.keepScreenshot = elements.keepScreenshot.checked;
+    state.keepScreenshot = elements.keepScreenshot ? elements.keepScreenshot.checked : false;
 
     try {
       const response = await fetch("/api/customer-approval/extract", {
         method: "POST",
-        headers: { "X-CSRF-Token": window.APP_CONFIG.csrfToken },
+        headers: {
+          "X-CSRF-Token": window.APP_CONFIG ? window.APP_CONFIG.csrfToken : "",
+        },
         body: formData,
       });
 
@@ -289,11 +333,12 @@
   function populateReviewForm() {
     Object.entries(reviewInputs).forEach(([name, input]) => {
       const value = typeof state.fields[name] === "string" ? state.fields[name] : "";
+
       if (value) {
         input.value = value;
       }
 
-      if (name === "technician_name" && !input.value) {
+      if (name === "technician_name" && !input.value && initialTechnicianInput) {
         input.value = initialTechnicianInput.value.trim();
       }
 
@@ -313,6 +358,10 @@
   }
 
   function renderWarnings() {
+    if (!elements.reviewWarnings) {
+      return;
+    }
+
     if (!state.warnings.length) {
       elements.reviewWarnings.hidden = true;
       elements.reviewWarnings.innerHTML = "";
@@ -320,6 +369,7 @@
     }
 
     elements.reviewWarnings.hidden = false;
+
     const items = state.warnings
       .map((warning) => `<li>${escapeHtml(warning)}</li>`)
       .join("");
@@ -335,7 +385,11 @@
     requiredFields.forEach((name) => {
       const input = reviewInputs[name];
       const hasValue = Boolean(input && input.value.trim());
-      input.classList.toggle("is-invalid", !hasValue);
+
+      if (input) {
+        input.classList.toggle("is-invalid", !hasValue);
+      }
+
       isValid = isValid && hasValue;
     });
 
@@ -380,7 +434,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-Token": window.APP_CONFIG.csrfToken,
+          "X-CSRF-Token": window.APP_CONFIG ? window.APP_CONFIG.csrfToken : "",
         },
         body: JSON.stringify(payload),
       });
@@ -393,9 +447,15 @@
 
       state.downloadUrl = result.download_url;
       state.shareMeta = result.share || null;
-      elements.downloadButton.href = result.download_url;
-      elements.successMessage.textContent =
-        result.message || "The approval PDF is ready for download or sharing.";
+
+      if (elements.downloadButton) {
+        elements.downloadButton.href = result.download_url;
+      }
+
+      if (elements.successMessage) {
+        elements.successMessage.textContent =
+          result.message || "The approval PDF is ready for download or sharing.";
+      }
 
       setStep(7);
       showStatus(
@@ -447,14 +507,34 @@
     state.signatures.customer = null;
     state.signatures.technician = null;
 
-    elements.extractForm.reset();
-    elements.reviewForm.reset();
-    elements.uploadStatus.textContent = "No file selected";
-    elements.dropzone.classList.remove("is-ready");
-    elements.imagePreview.hidden = true;
-    elements.previewImage.removeAttribute("src");
-    elements.reviewWarnings.hidden = true;
-    elements.reviewWarnings.innerHTML = "";
+    if (elements.extractForm) {
+      elements.extractForm.reset();
+    }
+
+    if (elements.reviewForm) {
+      elements.reviewForm.reset();
+    }
+
+    if (elements.uploadStatus) {
+      elements.uploadStatus.textContent = "No file selected";
+    }
+
+    if (elements.dropzone) {
+      elements.dropzone.classList.remove("is-ready");
+    }
+
+    if (elements.imagePreview) {
+      elements.imagePreview.hidden = true;
+    }
+
+    if (elements.previewImage) {
+      elements.previewImage.removeAttribute("src");
+    }
+
+    if (elements.reviewWarnings) {
+      elements.reviewWarnings.hidden = true;
+      elements.reviewWarnings.innerHTML = "";
+    }
 
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
@@ -503,16 +583,20 @@
   }
 
   function updateStickyAction() {
+    if (!elements.stickyTitle || !elements.stickySubtitle || !elements.stickyButton) {
+      return;
+    }
+
     let title = "Upload Screenshot";
     let subtitle = "Select a screenshot to continue.";
     let label = "Extract Information";
     let disabled = false;
 
     if (state.step === 1) {
-      subtitle = elements.screenshotInput.files[0]
+      subtitle = elements.screenshotInput && elements.screenshotInput.files[0]
         ? "Ready to extract information."
         : "Select a screenshot to continue.";
-      disabled = !elements.screenshotInput.files[0];
+      disabled = !(elements.screenshotInput && elements.screenshotInput.files[0]);
     } else if (state.step === 2) {
       title = "Extracting Information";
       subtitle = "Please wait while the screenshot is processed.";
@@ -558,15 +642,35 @@
   }
 
   function showStatus(type, title, message) {
+    if (!elements.statusBanner) {
+      return;
+    }
+
     elements.statusBanner.innerHTML =
       `<div class="status-card is-${type}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
   }
 
   function clearStatus() {
-    elements.statusBanner.innerHTML = "";
+    if (elements.statusBanner) {
+      elements.statusBanner.innerHTML = "";
+    }
   }
 
   function createSignaturePad(canvas) {
+    if (!canvas) {
+      return {
+        clear() {},
+        isEmpty() {
+          return true;
+        },
+        toDataURL() {
+          return "";
+        },
+        resize() {},
+        onChange() {},
+      };
+    }
+
     const context = canvas.getContext("2d");
     let drawing = false;
     let hasStroke = false;
