@@ -60,7 +60,6 @@ NOISE_WORDS = {
     "node",
     "fiber node",
     "complete job",
-    "new install",
     "resolution notes",
     "saved messages",
 }
@@ -108,96 +107,96 @@ def extract_customer_approval_data(
     parsed = _parse_customer_screen(raw_text)
 
     fields = {
-      "job_number": parsed.get("job_number", ""),
-      "customer_name": parsed.get("customer_name", ""),
-      "service_address": parsed.get("service_address", ""),
-      "city_state_zip": parsed.get("city_state_zip", ""),
-      "phone_number": parsed.get("phone_number", ""),
-      "work_phone_number": parsed.get("work_phone_number", ""),
-      "email": parsed.get("email", ""),
-      "installation_date": install_date,
-      "technician_name": technician_name.strip(),
+        "job_number": parsed.get("job_number", ""),
+        "customer_name": parsed.get("customer_name", ""),
+        "service_address": parsed.get("service_address", ""),
+        "city_state_zip": parsed.get("city_state_zip", ""),
+        "phone_number": parsed.get("phone_number", ""),
+        "work_phone_number": parsed.get("work_phone_number", ""),
+        "email": parsed.get("email", ""),
+        "installation_date": install_date,
+        "technician_name": technician_name.strip(),
     }
 
     confidence = {
-      "job_number": 0.96 if fields["job_number"] else 0.0,
-      "customer_name": 0.93 if fields["customer_name"] else 0.0,
-      "service_address": 0.92 if fields["service_address"] else 0.0,
-      "city_state_zip": 0.90 if fields["city_state_zip"] else 0.0,
-      "phone_number": 0.90 if fields["phone_number"] else 0.0,
-      "work_phone_number": 0.78 if fields["work_phone_number"] else 0.0,
-      "email": 0.86 if fields["email"] else 0.0,
-      "installation_date": 1.0 if install_date else 0.0,
-      "technician_name": 1.0 if technician_name.strip() else 0.0,
+        "job_number": 0.96 if fields["job_number"] else 0.0,
+        "customer_name": 0.94 if fields["customer_name"] else 0.0,
+        "service_address": 0.93 if fields["service_address"] else 0.0,
+        "city_state_zip": 0.91 if fields["city_state_zip"] else 0.0,
+        "phone_number": 0.90 if fields["phone_number"] else 0.0,
+        "work_phone_number": 0.78 if fields["work_phone_number"] else 0.0,
+        "email": 0.86 if fields["email"] else 0.0,
+        "installation_date": 1.0 if install_date else 0.0,
+        "technician_name": 1.0 if technician_name.strip() else 0.0,
     }
 
     warnings: list[str] = []
     missing_messages = {
-      "job_number": "Verify the job number before generating the final PDF.",
-      "customer_name": "Customer name could not be confidently extracted.",
-      "service_address": "Service address could not be confidently extracted.",
-      "city_state_zip": "City, State, ZIP could not be confidently extracted.",
-      "phone_number": "Phone number could not be confidently extracted.",
+        "job_number": "Verify the job number before generating the final PDF.",
+        "customer_name": "Customer name could not be confidently extracted.",
+        "service_address": "Service address could not be confidently extracted.",
+        "city_state_zip": "City, State, ZIP could not be confidently extracted.",
+        "phone_number": "Phone number could not be confidently extracted.",
     }
 
     for key in CORE_FIELDS:
-      if not fields.get(key):
-        warnings.append(missing_messages[key])
+        if not fields.get(key):
+            warnings.append(missing_messages[key])
 
     return {
-      "fields": fields,
-      "confidence": confidence,
-      "warnings": warnings,
+        "fields": fields,
+        "confidence": confidence,
+        "warnings": warnings,
     }
 
 
 def _manual_result(*, technician_name: str, install_date: str, warning: str) -> dict[str, Any]:
     fields = {
-      **EMPTY_FIELDS,
-      "installation_date": install_date,
-      "technician_name": technician_name.strip(),
+        **EMPTY_FIELDS,
+        "installation_date": install_date,
+        "technician_name": technician_name.strip(),
     }
     confidence = {
-      "job_number": 0.0,
-      "customer_name": 0.0,
-      "service_address": 0.0,
-      "city_state_zip": 0.0,
-      "phone_number": 0.0,
-      "work_phone_number": 0.0,
-      "email": 0.0,
-      "installation_date": 1.0 if install_date else 0.0,
-      "technician_name": 1.0 if technician_name.strip() else 0.0,
+        "job_number": 0.0,
+        "customer_name": 0.0,
+        "service_address": 0.0,
+        "city_state_zip": 0.0,
+        "phone_number": 0.0,
+        "work_phone_number": 0.0,
+        "email": 0.0,
+        "installation_date": 1.0 if install_date else 0.0,
+        "technician_name": 1.0 if technician_name.strip() else 0.0,
     }
     return {
-      "fields": fields,
-      "confidence": confidence,
-      "warnings": [warning],
+        "fields": fields,
+        "confidence": confidence,
+        "warnings": [warning],
     }
 
 
 def _ocr_available() -> bool:
     if pytesseract is None:
-      return False
+        return False
 
     configured_cmd = os.getenv("OCR_TESSERACT_CMD", "").strip()
     if configured_cmd:
-      pytesseract.pytesseract.tesseract_cmd = configured_cmd
-      return Path(configured_cmd).exists()
+        pytesseract.pytesseract.tesseract_cmd = configured_cmd
+        return Path(configured_cmd).exists()
 
     executable = shutil.which("tesseract")
     if executable:
-      pytesseract.pytesseract.tesseract_cmd = executable
-      return True
+        pytesseract.pytesseract.tesseract_cmd = executable
+        return True
 
     return False
 
 
 def _read_text(image_path: Path) -> str:
     try:
-      with Image.open(image_path) as source_image:
-        base = ImageOps.exif_transpose(source_image).convert("RGB")
-    except Exception as error:  # pragma: no cover
-      raise ExtractionError("Unable to read the uploaded screenshot.") from error
+        with Image.open(image_path) as source_image:
+            base = ImageOps.exif_transpose(source_image).convert("RGB")
+    except Exception as error:
+        raise ExtractionError("Unable to read the uploaded screenshot.") from error
 
     images = []
     images.extend(_prepare_images(base))
@@ -207,34 +206,34 @@ def _read_text(image_path: Path) -> str:
     collected: list[str] = []
 
     for image in images:
-      for config in ("--oem 3 --psm 6", "--oem 3 --psm 4", "--oem 3 --psm 11"):
-        try:
-          text = pytesseract.image_to_string(image, config=config)
-        except pytesseract.TesseractNotFoundError as error:  # type: ignore[attr-defined]
-          raise ExtractionError(
-            "Automatic text extraction is unavailable in this deployment, "
-            "so please review and complete the form manually."
-          ) from error
-        except Exception:
-          continue
+        for config in ("--oem 3 --psm 6", "--oem 3 --psm 4", "--oem 3 --psm 11"):
+            try:
+                text = pytesseract.image_to_string(image, config=config)
+            except pytesseract.TesseractNotFoundError as error:  # type: ignore[attr-defined]
+                raise ExtractionError(
+                    "Automatic text extraction is unavailable in this deployment, "
+                    "so please review and complete the form manually."
+                ) from error
+            except Exception:
+                continue
 
-        if text and text.strip():
-          collected.append(text)
+            if text and text.strip():
+                collected.append(text)
 
     return "\n".join(_dedupe_lines("\n".join(collected)))
 
 
 def _crop_top_section(image: Image.Image) -> Image.Image:
     width, height = image.size
-    top = int(height * 0.10)
-    bottom = int(height * 0.48)
+    top = int(height * 0.08)
+    bottom = int(height * 0.46)
     return image.crop((0, top, width, bottom))
 
 
 def _crop_contact_section(image: Image.Image) -> Image.Image:
     width, height = image.size
     top = int(height * 0.40)
-    bottom = int(height * 0.78)
+    bottom = int(height * 0.82)
     return image.crop((0, top, width, bottom))
 
 
@@ -242,20 +241,20 @@ def _prepare_images(image: Image.Image) -> list[Image.Image]:
     images: list[Image.Image] = []
 
     resized = image
-    if image.width < 1700:
-      scale = max(2, round(1700 / max(image.width, 1)))
-      resized = image.resize((image.width * scale, image.height * scale))
+    if image.width < 1800:
+        scale = max(2, round(1800 / max(image.width, 1)))
+        resized = image.resize((image.width * scale, image.height * scale))
 
     gray = ImageOps.grayscale(resized)
     gray = ImageOps.autocontrast(gray)
-    gray = ImageEnhance.Contrast(gray).enhance(1.9)
-    gray = ImageEnhance.Sharpness(gray).enhance(1.7)
+    gray = ImageEnhance.Contrast(gray).enhance(1.8)
+    gray = ImageEnhance.Sharpness(gray).enhance(1.8)
     gray = gray.filter(ImageFilter.MedianFilter(size=3))
 
     inverted = ImageOps.invert(gray)
     inverted = ImageOps.autocontrast(inverted)
 
-    binary_light = gray.point(lambda value: 255 if value > 170 else 0)
+    binary_light = gray.point(lambda value: 255 if value > 168 else 0)
     binary_dark = inverted.point(lambda value: 255 if value > 145 else 0)
 
     images.append(gray)
@@ -270,16 +269,16 @@ def _dedupe_lines(text: str) -> list[str]:
     results: list[str] = []
 
     for raw_line in text.splitlines():
-      line = raw_line.strip()
-      if not line:
-        continue
+        line = raw_line.strip()
+        if not line:
+            continue
 
-      normalized = re.sub(r"\s+", " ", line).strip().lower()
-      if normalized in seen:
-        continue
+        normalized = re.sub(r"\s+", " ", line).strip().lower()
+        if normalized in seen:
+            continue
 
-      seen.add(normalized)
-      results.append(re.sub(r"\s+", " ", line).strip())
+        seen.add(normalized)
+        results.append(re.sub(r"\s+", " ", line).strip())
 
     return results
 
@@ -289,40 +288,40 @@ def _parse_customer_screen(text: str) -> dict[str, str]:
     lines = _clean_lines(normalized_text)
 
     job_number = _match(
-      normalized_text,
-      [
-        r"\bNew\s+Install\s*-\s*Job\s*#\s*([A-Z0-9\-]{4,})",
-        r"\bJob\s*#\s*([A-Z0-9\-]{4,})",
-        r"\bJob\s*(?:Number|No\.?)\s*[:\-]?\s*([A-Z0-9\-]{4,})",
-      ],
+        normalized_text,
+        [
+            r"\bNew\s+Install\s*-\s*Job\s*#\s*([A-Z0-9\-]{4,})",
+            r"\bJob\s*#\s*([A-Z0-9\-]{4,})",
+            r"\bJob\s*(?:Number|No\.?)\s*[:\-]?\s*([A-Z0-9\-]{4,})",
+        ],
     )
 
     email = _match(
-      normalized_text,
-      [r"\b([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})\b"],
-      flags=re.IGNORECASE,
+        normalized_text,
+        [r"\b([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})\b"],
+        flags=re.IGNORECASE,
     )
 
-    primary_phone = _extract_labeled_value(lines, "Primary", kind="phone")
-    work_phone = _extract_labeled_value(lines, "Work", kind="phone")
+    primary_phone = _extract_labeled_phone(lines, "Primary")
+    work_phone = _extract_labeled_phone(lines, "Work")
     if not primary_phone:
-      phones = _find_all_phones(normalized_text)
-      primary_phone = phones[0] if phones else ""
-      if len(phones) > 1 and not work_phone:
-        work_phone = phones[1]
+        phones = _find_all_phones(normalized_text)
+        primary_phone = phones[0] if phones else ""
+        if len(phones) > 1 and not work_phone:
+            work_phone = phones[1]
 
     city_state_zip, city_index = _extract_city_state_zip(lines)
     service_address = _extract_address(lines, city_index)
     customer_name = _extract_name(lines, service_address, city_index, job_number)
 
     return {
-      "job_number": _clean_value(job_number),
-      "customer_name": _clean_customer_name(customer_name),
-      "service_address": _clean_service_address(service_address),
-      "city_state_zip": _clean_city_state_zip(city_state_zip),
-      "phone_number": primary_phone,
-      "work_phone_number": work_phone,
-      "email": email,
+        "job_number": _clean_value(job_number),
+        "customer_name": _clean_customer_name(customer_name),
+        "service_address": _clean_service_address(service_address),
+        "city_state_zip": _clean_city_state_zip(city_state_zip),
+        "phone_number": primary_phone,
+        "work_phone_number": work_phone,
+        "email": email,
     }
 
 
@@ -341,69 +340,50 @@ def _clean_lines(text: str) -> list[str]:
     seen: set[str] = set()
 
     for raw_line in text.splitlines():
-      line = raw_line.strip(" •\t")
-      line = re.sub(r"\s+", " ", line).strip()
-      if not line:
-        continue
+        line = raw_line.strip(" •\t")
+        line = re.sub(r"\s+", " ", line).strip()
+        if not line:
+            continue
 
-      lower = line.lower()
-      if lower in NOISE_WORDS:
-        continue
-      if any(word in lower for word in ("resolution", "notes", "health")) and len(line) < 40:
-        continue
-      if len(line) == 1:
-        continue
+        lower = line.lower()
 
-      if lower in seen:
-        continue
+        if lower in NOISE_WORDS:
+            continue
+        if any(word in lower for word in ("resolution", "notes", "health")) and len(line) < 40:
+            continue
+        if len(line) == 1:
+            continue
 
-      seen.add(lower)
-      results.append(line)
+        if lower in seen:
+            continue
+
+        seen.add(lower)
+        results.append(line)
 
     return results
 
 
 def _match(text: str, patterns: list[str], *, flags: int = re.IGNORECASE) -> str:
     for pattern in patterns:
-      match = re.search(pattern, text, flags)
-      if match:
-        return match.group(1).strip()
+        match = re.search(pattern, text, flags)
+        if match:
+            return match.group(1).strip()
     return ""
 
 
-def _extract_labeled_value(lines: list[str], label: str, *, kind: str) -> str:
+def _extract_labeled_phone(lines: list[str], label: str) -> str:
     for index, line in enumerate(lines):
-      if re.fullmatch(label, line, flags=re.IGNORECASE):
-        candidate = _first_candidate(lines[index + 1 : index + 3], kind=kind)
-        if candidate:
-          return candidate
+        if re.fullmatch(label, line, flags=re.IGNORECASE):
+            for candidate in lines[index + 1 : index + 3]:
+                phone = _format_phone(candidate)
+                if phone:
+                    return phone
 
-      inline = re.search(rf"{label}\s*[:\-]?\s*(.+)$", line, re.IGNORECASE)
-      if inline:
-        candidate = inline.group(1).strip()
-        if kind == "phone":
-          candidate = _format_phone(candidate)
-        return candidate
-    return ""
-
-
-def _first_candidate(lines: list[str], *, kind: str) -> str:
-    for line in lines:
-      if kind == "phone":
-        phone = _format_phone(line)
-        if phone:
-          return phone
-      elif kind == "email":
-        email = _match(
-          line,
-          [r"\b([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})\b"],
-          flags=re.IGNORECASE,
-        )
-        if email:
-          return email
-      else:
-        if line:
-          return line
+        inline = re.search(rf"{label}\s*[:\-]?\s*(.+)$", line, re.IGNORECASE)
+        if inline:
+            phone = _format_phone(inline.group(1))
+            if phone:
+                return phone
     return ""
 
 
@@ -537,11 +517,7 @@ def _looks_like_name(value: str) -> bool:
 
 
 def _looks_like_street(value: str) -> bool:
-    if not re.match(r"^\d{1,6}\s+", value):
-      return False
-    if _looks_like_city_state_zip(value):
-      return False
-    return True
+    return bool(re.match(r"^\d{1,6}\s+", value)) and not _looks_like_city_state_zip(value)
 
 
 def _looks_like_city_state_zip(value: str) -> bool:

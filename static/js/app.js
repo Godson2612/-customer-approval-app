@@ -4,6 +4,10 @@
     return;
   }
 
+  const isIPhone = /iPhone|iPod/i.test(navigator.userAgent || "");
+  const isTelegramBrowser = /Telegram/i.test(navigator.userAgent || "");
+  const isIPhoneTelegram = isIPhone && isTelegramBrowser;
+
   const state = {
     step: 1,
     fields: {},
@@ -89,16 +93,19 @@
   setStep(1);
 
   function setupUploadHint() {
-    const ua = navigator.userAgent || "";
-    const isiPhone = /iPhone|iPod/i.test(ua);
-    const isTelegramBrowser = /Telegram/i.test(ua);
+    if (elements.iosUploadHint) {
+      elements.iosUploadHint.hidden = !isIPhoneTelegram;
+    }
 
     if (elements.openExternalButton) {
       elements.openExternalButton.href = window.location.href;
-    }
-
-    if (elements.iosUploadHint) {
-      elements.iosUploadHint.hidden = !(isiPhone && isTelegramBrowser);
+      elements.openExternalButton.addEventListener("click", () => {
+        showStatus(
+          "warning",
+          "Open in Safari",
+          "If Telegram still opens the camera, use Safari for screenshot uploads."
+        );
+      });
     }
   }
 
@@ -243,16 +250,17 @@
       return;
     }
 
-    const allowedExtensions = [".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"];
-    const lowerName = file.name.toLowerCase();
-    const allowed = allowedExtensions.some((ext) => lowerName.endsWith(ext));
+    const fileName = (file.name || "").toLowerCase();
+    const fileType = (file.type || "").toLowerCase();
 
-    if (!allowed) {
-      showStatus(
-        "error",
-        "Unsupported file",
-        "Please choose a PNG, JPG, WebP, or HEIC screenshot."
-      );
+    const isAccepted =
+      fileName.endsWith(".png") ||
+      fileName.endsWith(".jpg") ||
+      fileName.endsWith(".jpeg") ||
+      fileType === "image/png" ||
+      fileType === "image/jpeg";
+
+    if (!isAccepted) {
       if (elements.screenshotInput) {
         elements.screenshotInput.value = "";
       }
@@ -262,6 +270,11 @@
       if (elements.dropzone) {
         elements.dropzone.classList.remove("is-ready");
       }
+      showStatus(
+        "error",
+        "Screenshot required",
+        "Please choose a PNG or JPG screenshot from Photos or Files."
+      );
       updateStickyAction();
       return;
     }
@@ -273,6 +286,17 @@
     }
     if (elements.imagePreview) {
       elements.imagePreview.hidden = false;
+    }
+
+    if (isIPhoneTelegram) {
+      showStatus(
+        "warning",
+        "Ready to extract",
+        "Telegram on iPhone is less reliable. If this fails, tap Open in Safari and choose the screenshot there."
+      );
+      setStep(1);
+      updateStickyAction();
+      return;
     }
 
     updateStickyAction();
@@ -300,6 +324,7 @@
         return;
       }
       setStep(5);
+      scrollToTopSmooth();
       return;
     }
 
@@ -328,6 +353,7 @@
 
     syncReviewState();
     setStep(4);
+    scrollToTopSmooth();
   }
 
   async function extractInformation() {
@@ -339,6 +365,7 @@
 
     clearStatus();
     setStep(2);
+    scrollToTopSmooth();
 
     const formData = new FormData(elements.extractForm);
     state.keepScreenshot = elements.keepScreenshot ? elements.keepScreenshot.checked : false;
@@ -375,7 +402,21 @@
       scrollToTopSmooth();
     } catch (error) {
       setStep(1);
-      showStatus("error", "Extraction could not be completed", error.message);
+
+      const rawMessage = error && error.message ? String(error.message) : "Unable to extract information.";
+
+      if (rawMessage.includes("expected pattern") || rawMessage.includes("Load failed")) {
+        showStatus(
+          "error",
+          "Extraction could not be completed",
+          isIPhoneTelegram
+            ? "Telegram on iPhone is blocking the screenshot upload. Tap Open in Safari and choose the screenshot there."
+            : "The selected file could not be processed. Please choose a PNG or JPG screenshot and try again."
+        );
+      } else {
+        showStatus("error", "Extraction could not be completed", rawMessage);
+      }
+
       scrollToTopSmooth();
     }
   }
@@ -468,6 +509,7 @@
     syncReviewState();
     setStep(6);
     clearStatus();
+    scrollToTopSmooth();
 
     const payload = {
       fields: {
@@ -517,7 +559,7 @@
       scrollToTopSmooth();
     } catch (error) {
       setStep(5);
-      showStatus("error", "Document generation failed", error.message);
+      showStatus("error", "Document generation failed", error.message || "Unable to generate document.");
       scrollToTopSmooth();
     }
   }

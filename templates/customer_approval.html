@@ -30,11 +30,17 @@
 
     <section id="iosUploadHint" class="surface-card helper-card" hidden>
       <div class="helper-copy">
-        <strong>iPhone upload tip</strong>
-        <p>If Telegram opens the camera instead of Photos, tap below to open this page in Safari and choose the screenshot there.</p>
+        <strong>Telegram on iPhone</strong>
+        <p>If Telegram opens the camera instead of Photos, tap below and use Safari to choose the screenshot from Photos or Files.</p>
       </div>
-      <a id="openExternalButton" class="secondary-button helper-button" href="#" target="_blank" rel="noopener">
-        Open in Browser
+      <a
+        id="openExternalButton"
+        class="secondary-button helper-button"
+        href="{{ url_for('customer_approval', _external=True) }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open in Safari
       </a>
     </section>
 
@@ -80,7 +86,7 @@
               id="screenshotInput"
               name="screenshot"
               type="file"
-              accept=".png,.jpg,.jpeg,.webp,.heic,.heif"
+              accept=".png,.jpg,.jpeg"
               required
             >
             <span class="upload-icon" aria-hidden="true">
@@ -104,7 +110,7 @@
               </svg>
             </span>
             <span class="upload-title">Choose a screenshot</span>
-            <span class="upload-copy">PNG, JPG, WebP, or HEIC. Select from Photos or Files.</span>
+            <span class="upload-copy">Screenshots only. PNG or JPG. Choose from Photos or Files.</span>
             <span id="uploadStatus" class="upload-status">No file selected</span>
           </label>
 
@@ -152,6 +158,7 @@
               <input id="jobNumber" name="job_number" type="text" required placeholder="Enter job number">
               <span class="field-note" data-confidence-for="job_number"></span>
             </label>
+
             <label class="field">
               <span class="field-label">Date of Installation</span>
               <input id="installationDate" name="installation_date" type="text" value="{{ today }}" required placeholder="MM/DD/YYYY">
