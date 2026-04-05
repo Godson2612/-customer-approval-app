@@ -108,9 +108,11 @@
         if (input.name === "technician_name" && initialTechnicianInput) {
           initialTechnicianInput.value = input.value;
         }
+
         if (input.name === "installation_date" && installationDateMirror) {
           installationDateMirror.value = input.value;
         }
+
         input.classList.remove("is-invalid");
         updateStickyAction();
       });
@@ -270,9 +272,7 @@
       canvas.height = height;
 
       const context = canvas.getContext("2d");
-      if (!context) {
-        throw new Error("Canvas unavailable.");
-      }
+      if (!context) throw new Error("Canvas unavailable.");
 
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
@@ -676,9 +676,7 @@
     let disabled = false;
 
     if (state.step === 1) {
-      subtitle = state.preparedBlob
-        ? "Ready to extract information."
-        : "Select a screenshot to continue.";
+      subtitle = state.preparedBlob ? "Ready to extract information." : "Select a screenshot to continue.";
       disabled = !state.preparedBlob;
     } else if (state.step === 2) {
       title = "Extracting Information";
@@ -694,16 +692,12 @@
       );
     } else if (state.step === 4) {
       title = "Customer Signature";
-      subtitle = state.signatures.customer
-        ? "Signature captured and ready to continue."
-        : "Customer signature is required.";
+      subtitle = state.signatures.customer ? "Signature captured and ready to continue." : "Customer signature is required.";
       label = "Continue";
       disabled = !state.signatures.customer;
     } else if (state.step === 5) {
       title = "Technician Signature";
-      subtitle = state.signatures.technician
-        ? "Ready to generate the final document."
-        : "Technician signature is required.";
+      subtitle = state.signatures.technician ? "Ready to generate the final document." : "Technician signature is required.";
       label = "Generate Document";
       disabled = !state.signatures.technician;
     } else if (state.step === 6) {
@@ -747,9 +741,7 @@
   }
 
   function clearStatus() {
-    if (elements.statusBanner) {
-      elements.statusBanner.innerHTML = "";
-    }
+    if (elements.statusBanner) elements.statusBanner.innerHTML = "";
   }
 
   function createSignaturePad(canvas) {

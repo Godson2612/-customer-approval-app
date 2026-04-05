@@ -81,6 +81,7 @@ def create_app() -> Flask:
     def ensure_csrf_token() -> None:
         if "csrf_token" not in session:
             session["csrf_token"] = _generate_csrf_token()
+
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             token = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
             if not token or token != session["csrf_token"]:
@@ -137,12 +138,16 @@ def create_app() -> Flask:
                 normalized.save(stored_path, format="PNG", optimize=True)
         except UnidentifiedImageError:
             return jsonify(
-                {"error": "The selected file could not be processed. Please upload a valid screenshot image."}
+                {
+                    "error": "The selected file could not be processed. Please upload a valid screenshot image."
+                }
             ), 422
         except Exception:
             app.logger.exception("Image normalization failed")
             return jsonify(
-                {"error": "The selected file could not be processed. Please upload a valid screenshot image."}
+                {
+                    "error": "The selected file could not be processed. Please upload a valid screenshot image."
+                }
             ), 422
 
         try:
@@ -171,13 +176,33 @@ def create_app() -> Flask:
 
         except ExtractionError as error:
             app.logger.warning("Image extraction failed: %s", error.public_message)
-            stored_path.unlink(missing_ok=True)
-            return jsonify({"error": error.public_message}), 422
+
+            manual_payload = _build_manual_extract_payload(
+                technician_name=technician_name,
+                today=datetime.now().strftime("%m/%d/%Y"),
+                screenshot_filename=safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None,
+                warning=error.public_message,
+            )
+
+            if manual_payload["meta"]["screenshot_filename"] is None:
+                stored_path.unlink(missing_ok=True)
+
+            return jsonify(manual_payload), 200
 
         except Exception:
             app.logger.exception("Unhandled extraction failure")
-            stored_path.unlink(missing_ok=True)
-            return jsonify({"error": "Unable to extract information from the screenshot."}), 500
+
+            manual_payload = _build_manual_extract_payload(
+                technician_name=technician_name,
+                today=datetime.now().strftime("%m/%d/%Y"),
+                screenshot_filename=safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None,
+                warning="Automatic extraction failed, so please review and complete the form manually.",
+            )
+
+            if manual_payload["meta"]["screenshot_filename"] is None:
+                stored_path.unlink(missing_ok=True)
+
+            return jsonify(manual_payload), 200
 
     @app.post("/api/customer-approval/generate")
     def generate_customer_approval() -> tuple[Any, int]:
@@ -267,6 +292,44 @@ def create_app() -> Flask:
     return app
 
 
+def _build_manual_extract_payload(
+    *,
+    technician_name: str,
+    today: str,
+    screenshot_filename: str | None,
+    warning: str,
+) -> dict[str, Any]:
+    return {
+        "fields": {
+            "job_number": "",
+            "customer_name": "",
+            "service_address": "",
+            "city_state_zip": "",
+            "phone_number": "",
+            "work_phone_number": "",
+            "email": "",
+            "installation_date": today,
+            "technician_name": technician_name,
+        },
+        "confidence": {
+            "job_number": 0.0,
+            "customer_name": 0.0,
+            "service_address": 0.0,
+            "city_state_zip": 0.0,
+            "phone_number": 0.0,
+            "work_phone_number": 0.0,
+            "email": 0.0,
+            "installation_date": 1.0 if today else 0.0,
+            "technician_name": 1.0 if technician_name else 0.0,
+        },
+        "warnings": [warning],
+        "meta": {
+            "screenshot_filename": screenshot_filename,
+            "original_filename": screenshot_filename or "",
+        },
+    }
+
+
 def _ensure_directories() -> None:
     for directory in (INSTANCE_DIR, DATA_DIR, UPLOAD_DIR, PDF_DIR, TEMPLATE_DIR):
         directory.mkdir(parents=True, exist_ok=True)
@@ -290,6 +353,7 @@ def _validate_required_fields(fields: dict[str, Any]) -> dict[str, str]:
         "technician_name": "Technician Name is required.",
         "technician_signature": "Technician Signature is required.",
     }
+
     errors: dict[str, str] = {}
     for key, message in required_fields.items():
         value = fields.get(key)
