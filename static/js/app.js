@@ -1,8 +1,6 @@
 (function () {
   const workflowScreen = document.querySelector(".workflow-screen");
-  if (!workflowScreen) {
-    return;
-  }
+  if (!workflowScreen) return;
 
   const state = {
     step: 1,
@@ -17,6 +15,7 @@
     signatures: { customer: null, technician: null },
     preparedBlob: null,
     preparedFileName: "",
+    previewUrl: null,
   };
 
   const elements = {
@@ -38,8 +37,6 @@
     downloadButton: document.getElementById("downloadButton"),
     successMessage: document.getElementById("successMessage"),
   };
-
-  let previewObjectUrl = null;
 
   const cardsByStep = new Map(
     Array.from(document.querySelectorAll("[data-step]")).map((node) => [
@@ -111,11 +108,9 @@
         if (input.name === "technician_name" && initialTechnicianInput) {
           initialTechnicianInput.value = input.value;
         }
-
         if (input.name === "installation_date" && installationDateMirror) {
           installationDateMirror.value = input.value;
         }
-
         input.classList.remove("is-invalid");
         updateStickyAction();
       });
@@ -192,10 +187,8 @@
       reviewInputs.installation_date.value = today;
     }
 
-    if (installationDateMirror) {
-      installationDateMirror.value = reviewInputs.installation_date
-        ? reviewInputs.installation_date.value || today
-        : today;
+    if (installationDateMirror && reviewInputs.installation_date) {
+      installationDateMirror.value = reviewInputs.installation_date.value || today;
     }
 
     if (initialTechnicianInput && !initialTechnicianInput.value) {
@@ -214,17 +207,9 @@
       elements.dropzone.classList.toggle("is-ready", Boolean(file));
     }
 
-    if (previewObjectUrl) {
-      URL.revokeObjectURL(previewObjectUrl);
-      previewObjectUrl = null;
-    }
-
-    state.preparedBlob = null;
-    state.preparedFileName = "";
+    clearPreparedFile(false);
 
     if (!file) {
-      if (elements.imagePreview) elements.imagePreview.hidden = true;
-      if (elements.previewImage) elements.previewImage.removeAttribute("src");
       updateStickyAction();
       return;
     }
@@ -235,9 +220,15 @@
       return;
     }
 
-    previewObjectUrl = URL.createObjectURL(file);
-    if (elements.previewImage) elements.previewImage.src = previewObjectUrl;
-    if (elements.imagePreview) elements.imagePreview.hidden = false;
+    state.previewUrl = URL.createObjectURL(file);
+
+    if (elements.previewImage) {
+      elements.previewImage.src = state.previewUrl;
+    }
+
+    if (elements.imagePreview) {
+      elements.imagePreview.hidden = false;
+    }
 
     try {
       const normalized = await normalizeImageToPng(file);
@@ -259,9 +250,7 @@
     const fileName = (file.name || "").toLowerCase();
     const fileType = (file.type || "").toLowerCase();
 
-    if (fileType.startsWith("image/")) {
-      return true;
-    }
+    if (fileType.startsWith("image/")) return true;
 
     return [".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"].some((ext) =>
       fileName.endsWith(ext)
@@ -291,11 +280,8 @@
 
       const blob = await new Promise((resolve, reject) => {
         canvas.toBlob((result) => {
-          if (result) {
-            resolve(result);
-          } else {
-            reject(new Error("PNG conversion failed."));
-          }
+          if (result) resolve(result);
+          else reject(new Error("PNG conversion failed."));
         }, "image/png");
       });
 
@@ -317,21 +303,38 @@
     });
   }
 
-  function resetFileSelection() {
-    if (elements.screenshotInput) elements.screenshotInput.value = "";
-    if (elements.uploadStatus) elements.uploadStatus.textContent = "No file selected";
-    if (elements.dropzone) elements.dropzone.classList.remove("is-ready");
-    if (elements.imagePreview) elements.imagePreview.hidden = true;
-    if (elements.previewImage) elements.previewImage.removeAttribute("src");
-
+  function clearPreparedFile(clearInput = true) {
     state.preparedBlob = null;
     state.preparedFileName = "";
 
-    if (previewObjectUrl) {
-      URL.revokeObjectURL(previewObjectUrl);
-      previewObjectUrl = null;
+    if (state.previewUrl) {
+      URL.revokeObjectURL(state.previewUrl);
+      state.previewUrl = null;
     }
 
+    if (elements.imagePreview) {
+      elements.imagePreview.hidden = true;
+    }
+
+    if (elements.previewImage) {
+      elements.previewImage.removeAttribute("src");
+    }
+
+    if (clearInput && elements.screenshotInput) {
+      elements.screenshotInput.value = "";
+    }
+  }
+
+  function resetFileSelection() {
+    if (elements.uploadStatus) {
+      elements.uploadStatus.textContent = "No file selected";
+    }
+
+    if (elements.dropzone) {
+      elements.dropzone.classList.remove("is-ready");
+    }
+
+    clearPreparedFile(true);
     updateStickyAction();
   }
 
@@ -348,11 +351,7 @@
 
     if (state.step === 4) {
       if (!state.signatures.customer) {
-        showStatus(
-          "error",
-          "Customer signature required",
-          "Please capture the customer signature to continue."
-        );
+        showStatus("error", "Customer signature required", "Please capture the customer signature to continue.");
         return;
       }
       setStep(5);
@@ -362,11 +361,7 @@
 
     if (state.step === 5) {
       if (!state.signatures.technician) {
-        showStatus(
-          "error",
-          "Technician signature required",
-          "Please capture the technician signature to continue."
-        );
+        showStatus("error", "Technician signature required", "Please capture the technician signature to continue.");
         return;
       }
       generateDocument();
@@ -379,10 +374,7 @@
   }
 
   function continueFromReview() {
-    if (!validateReviewForm()) {
-      return;
-    }
-
+    if (!validateReviewForm()) return;
     syncReviewState();
     setStep(4);
     scrollToTopSmooth();
@@ -418,19 +410,13 @@
     state.keepScreenshot = elements.keepScreenshot ? elements.keepScreenshot.checked : false;
 
     try {
-      const response = await fetch("/api/customer-approval/extract", {
+      const payload = await fetchJson("/api/customer-approval/extract", {
         method: "POST",
         headers: {
           "X-CSRF-Token": window.APP_CONFIG ? window.APP_CONFIG.csrfToken : "",
         },
         body: formData,
       });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Unable to extract information.");
-      }
 
       state.fields = payload.fields || {};
       state.confidence = payload.confidence || {};
@@ -440,11 +426,7 @@
 
       populateReviewForm();
       renderWarnings();
-      showStatus(
-        "success",
-        "Information extracted",
-        "Review the details below before collecting signatures."
-      );
+      showStatus("success", "Information extracted", "Review the details below before collecting signatures.");
       setStep(3);
       scrollToTopSmooth();
     } catch (error) {
@@ -452,12 +434,30 @@
       showStatus(
         "error",
         "Extraction could not be completed",
-        error && error.message
-          ? String(error.message)
-          : "Unable to extract information from the screenshot."
+        error && error.message ? String(error.message) : "Unable to extract information from the screenshot."
       );
       scrollToTopSmooth();
     }
+  }
+
+  async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        throw new Error("Server returned an invalid response. Refresh the page and try again.");
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Request failed.");
+    }
+
+    return payload;
   }
 
   function populateReviewForm() {
@@ -497,7 +497,6 @@
     }
 
     elements.reviewWarnings.hidden = false;
-
     const items = state.warnings
       .map((warning) => `<li>${escapeHtml(warning)}</li>`)
       .join("");
@@ -522,11 +521,7 @@
     });
 
     if (!isValid) {
-      showStatus(
-        "error",
-        "Required fields are missing",
-        "Complete all required fields before continuing."
-      );
+      showStatus("error", "Required fields are missing", "Complete all required fields before continuing.");
       scrollToFirstInvalidField();
     } else {
       clearStatus();
@@ -560,7 +555,7 @@
     };
 
     try {
-      const response = await fetch("/api/customer-approval/generate", {
+      const result = await fetchJson("/api/customer-approval/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -568,12 +563,6 @@
         },
         body: JSON.stringify(payload),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to generate the document.");
-      }
 
       state.downloadUrl = result.download_url;
       state.shareMeta = result.share || null;
@@ -588,18 +577,14 @@
       }
 
       setStep(7);
-      showStatus(
-        "success",
-        "Document ready",
-        "The approval PDF has been generated successfully."
-      );
+      showStatus("success", "Document ready", "The approval PDF has been generated successfully.");
       scrollToTopSmooth();
     } catch (error) {
       setStep(5);
       showStatus(
         "error",
         "Document generation failed",
-        error && error.message ? String(error.message) : "Unable to generate document."
+        error && error.message ? String(error.message) : "Unable to generate the document."
       );
       scrollToTopSmooth();
     }
@@ -611,18 +596,13 @@
     if (navigator.share) {
       try {
         await navigator.share({
-          title:
-            state.shareMeta && state.shareMeta.title
-              ? state.shareMeta.title
-              : "Customer Approval",
+          title: state.shareMeta && state.shareMeta.title ? state.shareMeta.title : "Customer Approval",
           text: "Customer approval document is ready.",
           url: `${window.location.origin}${state.downloadUrl}`,
         });
         return;
       } catch (error) {
-        if (error && error.name === "AbortError") {
-          return;
-        }
+        if (error && error.name === "AbortError") return;
       }
     }
 
@@ -640,25 +620,17 @@
     state.shareMeta = null;
     state.signatures.customer = null;
     state.signatures.technician = null;
-    state.preparedBlob = null;
-    state.preparedFileName = "";
 
     if (elements.extractForm) elements.extractForm.reset();
     if (elements.reviewForm) elements.reviewForm.reset();
     if (elements.uploadStatus) elements.uploadStatus.textContent = "No file selected";
     if (elements.dropzone) elements.dropzone.classList.remove("is-ready");
-    if (elements.imagePreview) elements.imagePreview.hidden = true;
-    if (elements.previewImage) elements.previewImage.removeAttribute("src");
     if (elements.reviewWarnings) {
       elements.reviewWarnings.hidden = true;
       elements.reviewWarnings.innerHTML = "";
     }
 
-    if (previewObjectUrl) {
-      URL.revokeObjectURL(previewObjectUrl);
-      previewObjectUrl = null;
-    }
-
+    clearPreparedFile(false);
     clearStatus();
     customerPad.clear();
     technicianPad.clear();
@@ -775,7 +747,9 @@
   }
 
   function clearStatus() {
-    if (elements.statusBanner) elements.statusBanner.innerHTML = "";
+    if (elements.statusBanner) {
+      elements.statusBanner.innerHTML = "";
+    }
   }
 
   function createSignaturePad(canvas) {

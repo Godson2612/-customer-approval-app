@@ -9,7 +9,7 @@
     data-today="{{ today }}"
   >
     <header class="workflow-header surface-card">
-      <a class="back-button" href="{{ url_for('home') }}" aria-label="Back to home">
+      <a class="back-button" href="{{ url_for('customer_approval') }}" aria-label="Refresh page">
         <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
           <path
             d="M15 5.75 8.75 12 15 18.25"
@@ -299,5 +299,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js', v='20260404-2') }}" defer></script>
 {% endblock %}

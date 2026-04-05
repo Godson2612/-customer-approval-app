@@ -13,14 +13,15 @@ from flask import (
     Flask,
     abort,
     jsonify,
+    redirect,
     render_template,
     request,
     send_file,
     session,
+    url_for,
 )
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.utils import secure_filename
 
 from models import ApprovalRepository
 from utils.image_extract import ExtractionError, extract_customer_approval_data
@@ -103,8 +104,8 @@ def create_app() -> Flask:
         return {"error": "An unexpected error occurred."}, 500
 
     @app.get("/")
-    def home() -> str:
-        return render_template("home.html", csrf_token=session["csrf_token"])
+    def home():
+        return redirect(url_for("customer_approval"))
 
     @app.get("/customer-approval")
     def customer_approval() -> str:
@@ -126,8 +127,7 @@ def create_app() -> Flask:
             return jsonify({"error": "A screenshot image is required."}), 400
 
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        base_name = secure_filename(Path(upload.filename).stem) or f"screenshot_{timestamp}"
-        safe_name = f"{base_name}_{timestamp}.png"
+        safe_name = f"screenshot_{timestamp}.png"
         stored_path = UPLOAD_DIR / safe_name
 
         try:
@@ -137,12 +137,12 @@ def create_app() -> Flask:
                 normalized.save(stored_path, format="PNG", optimize=True)
         except UnidentifiedImageError:
             return jsonify(
-                {"error": "The selected file could not be processed. Please upload a screenshot image."}
+                {"error": "The selected file could not be processed. Please upload a valid screenshot image."}
             ), 422
         except Exception:
             app.logger.exception("Image normalization failed")
             return jsonify(
-                {"error": "The selected file could not be processed. Please upload a screenshot image."}
+                {"error": "The selected file could not be processed. Please upload a valid screenshot image."}
             ), 422
 
         try:
@@ -152,12 +152,7 @@ def create_app() -> Flask:
                 install_date=datetime.now().strftime("%m/%d/%Y"),
             )
 
-            screenshot_filename = (
-                safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None
-            )
-
-            if screenshot_filename is None:
-                stored_path.unlink(missing_ok=True)
+            screenshot_filename = safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None
 
             payload = {
                 "fields": result["fields"],
@@ -168,6 +163,10 @@ def create_app() -> Flask:
                     "original_filename": safe_name,
                 },
             }
+
+            if screenshot_filename is None:
+                stored_path.unlink(missing_ok=True)
+
             return jsonify(payload), 200
 
         except ExtractionError as error:
