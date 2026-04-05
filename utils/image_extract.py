@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
-from openai import OpenAIError
 
 
 class ExtractionError(ValueError):
@@ -69,7 +68,6 @@ SCHEMA: dict[str, Any] = {
     ],
 }
 
-
 SYSTEM_INSTRUCTIONS = """
 You extract customer approval data from cable-installation job screenshots.
 
@@ -78,18 +76,16 @@ The screenshots usually contain:
 - Customer full name near the top left under the tabs
 - Street address on the next line
 - City, State ZIP on the next line
-- Primary and work phone numbers in "Account Contact Information"
+- Primary and work phone numbers in Account Contact Information
 - Email in the same section
 
 Rules:
 - Extract only what is clearly visible in the screenshot
-- Do not invent or guess hidden text
-- If a field is not visible or not reliable, return an empty string
-- Return customer_name as the person's full name only
+- Do not invent data
+- If a field is missing or uncertain, return an empty string
 - Return service_address as street only
 - Return city_state_zip as city, state ZIP only
-- Return phone numbers as visible; formatting cleanup will happen later
-- warnings should mention any missing or uncertain fields
+- warnings should mention unclear or missing fields
 - confidence values must be between 0.0 and 1.0
 """
 
@@ -100,26 +96,62 @@ def extract_customer_approval_data(
     technician_name: str,
     install_date: str,
 ) -> dict[str, Any]:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    model = (os.getenv("OPENAI_MODEL") or "gpt-4.1-mini").strip()
+
     if not api_key:
         raise ExtractionError("OPENAI_API_KEY is not configured on the server.")
 
     if not image_path.exists():
         raise ExtractionError("The uploaded screenshot could not be found.")
 
-    image_data_url = _image_path_to_data_url(image_path)
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini"
-    client = OpenAI(api_key=api_key)
+    data_url = _image_path_to_data_url(image_path)
 
     try:
-        payload = _extract_with_schema(client=client, model=model, image_data_url=image_data_url)
-    except Exception:
-        try:
-            payload = _extract_with_loose_json(client=client, model=model, image_data_url=image_data_url)
-        except OpenAIError as error:
-            raise ExtractionError(f"OpenAI extraction failed: {error}") from error
-        except Exception as error:
-            raise ExtractionError("OpenAI extraction failed. Please review and complete the form manually.") from error
+        client = OpenAI(api_key=api_key)
+
+        response = client.responses.create(
+            model=model,
+            instructions=SYSTEM_INSTRUCTIONS,
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Extract the customer approval fields from this screenshot and return the schema only.",
+                        },
+                        {
+                            "type": "input_image",
+                            "image_url": data_url,
+                            "detail": "high",
+                        },
+                    ],
+                }
+            ],
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "customer_approval_extraction",
+                    "schema": SCHEMA,
+                    "strict": True,
+                }
+            },
+            max_output_tokens=800,
+        )
+
+        raw_text = getattr(response, "output_text", "") or ""
+        if not raw_text.strip():
+            raise ExtractionError("OpenAI returned an empty extraction response.")
+
+        payload = json.loads(raw_text)
+        if not isinstance(payload, dict):
+            raise ExtractionError("OpenAI returned an invalid extraction response.")
+
+    except ExtractionError:
+        raise
+    except Exception as error:
+        raise ExtractionError(f"OpenAI extraction failed: {str(error)}") from error
 
     fields = {
         "job_number": _clean_job_number(payload.get("job_number", "")),
@@ -153,7 +185,7 @@ def extract_customer_approval_data(
     if isinstance(raw_warnings, list):
         warnings.extend(str(item).strip() for item in raw_warnings if str(item).strip())
 
-    missing_messages = {
+    required_messages = {
         "job_number": "Verify the job number before generating the final PDF.",
         "customer_name": "Customer name could not be confidently extracted.",
         "service_address": "Service address could not be confidently extracted.",
@@ -161,7 +193,7 @@ def extract_customer_approval_data(
         "phone_number": "Primary phone number could not be confidently extracted.",
     }
 
-    for key, message in missing_messages.items():
+    for key, message in required_messages.items():
         if not fields.get(key):
             warnings.append(message)
 
@@ -174,144 +206,30 @@ def extract_customer_approval_data(
     }
 
 
-def _extract_with_schema(*, client: OpenAI, model: str, image_data_url: str) -> dict[str, Any]:
-    response = client.responses.create(
-        model=model,
-        instructions=SYSTEM_INSTRUCTIONS,
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": (
-                            "Extract the customer approval fields from this screenshot. "
-                            "Return only the schema fields."
-                        ),
-                    },
-                    {
-                        "type": "input_image",
-                        "image_url": image_data_url,
-                        "detail": "high",
-                    },
-                ],
-            }
-        ],
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "customer_approval_extraction",
-                "schema": SCHEMA,
-                "strict": True,
-            }
-        },
-        max_output_tokens=800,
-    )
-
-    raw_text = getattr(response, "output_text", "") or ""
-    if not raw_text.strip():
-        raise ExtractionError("OpenAI returned an empty extraction response.")
-
-    data = json.loads(raw_text)
-    if not isinstance(data, dict):
-        raise ExtractionError("OpenAI returned an invalid extraction response.")
-
-    return data
-
-
-def _extract_with_loose_json(*, client: OpenAI, model: str, image_data_url: str) -> dict[str, Any]:
-    response = client.responses.create(
-        model=model,
-        instructions=SYSTEM_INSTRUCTIONS
-        + "\nReturn only a valid JSON object with these keys: "
-        + "job_number, customer_name, service_address, city_state_zip, phone_number, "
-        + "work_phone_number, email, warnings, confidence.",
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": (
-                            "Extract the customer approval fields from this screenshot. "
-                            "Return JSON only. Do not wrap in markdown."
-                        ),
-                    },
-                    {
-                        "type": "input_image",
-                        "image_url": image_data_url,
-                        "detail": "high",
-                    },
-                ],
-            }
-        ],
-        max_output_tokens=800,
-    )
-
-    raw_text = getattr(response, "output_text", "") or ""
-    json_text = _extract_json_object(raw_text)
-    data = json.loads(json_text)
-
-    if not isinstance(data, dict):
-        raise ExtractionError("OpenAI returned an invalid JSON extraction response.")
-
-    return data
-
-
 def _image_path_to_data_url(image_path: Path) -> str:
     mime_type, _ = mimetypes.guess_type(str(image_path))
     if not mime_type:
         mime_type = "image/png"
 
-    image_bytes = image_path.read_bytes()
-    encoded = base64.b64encode(image_bytes).decode("utf-8")
+    encoded = base64.b64encode(image_path.read_bytes()).decode("utf-8")
     return f"data:{mime_type};base64,{encoded}"
-
-
-def _extract_json_object(text: str) -> str:
-    cleaned = text.strip()
-
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?", "", cleaned, flags=re.IGNORECASE).strip()
-        cleaned = re.sub(r"```$", "", cleaned).strip()
-
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ExtractionError("OpenAI did not return valid JSON.")
-
-    return cleaned[start : end + 1]
 
 
 def _clean_job_number(value: str) -> str:
     value = _clean_text(value)
-    match = re.search(r"([A-Z0-9\-]{4,})", value, flags=re.IGNORECASE)
+    match = re.search(r"([A-Z0-9\\-]{4,})", value, flags=re.IGNORECASE)
     return match.group(1) if match else value
 
 
 def _clean_name(value: str) -> str:
     value = _clean_text(value)
-    blacklist = {
-        "details",
-        "health",
-        "history",
-        "account information",
-        "account contact information",
-        "legal name",
-        "primary",
-        "work",
-        "email",
-    }
-    if value.lower() in blacklist:
-        return ""
-    if any(token in value.lower() for token in ("job#", "job #", "lake worth", "@")):
+    if "@" in value:
         return ""
     return value
 
 
 def _clean_street(value: str) -> str:
     value = _clean_text(value)
-    value = re.sub(r"\s+,", ",", value)
     return value.rstrip(",")
 
 
