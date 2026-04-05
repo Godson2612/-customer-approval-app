@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageOps, UnidentifiedImageError
 from flask import (
     Flask,
     abort,
@@ -36,7 +37,6 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 PDF_DIR = DATA_DIR / "generated"
 TEMPLATE_DIR = BASE_DIR / "templates"
 
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 MAX_CONTENT_LENGTH = 12 * 1024 * 1024
 
 
@@ -125,15 +125,25 @@ def create_app() -> Flask:
         if not upload or not upload.filename:
             return jsonify({"error": "A screenshot image is required."}), 400
 
-        extension = Path(upload.filename).suffix.lower()
-        if extension not in ALLOWED_IMAGE_EXTENSIONS:
-            return jsonify(
-                {"error": "Unsupported image type. Please upload JPG, PNG, WebP, or HEIC."}
-            ), 400
-
-        safe_name = secure_filename(upload.filename) or f"screenshot_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.png"
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        base_name = secure_filename(Path(upload.filename).stem) or f"screenshot_{timestamp}"
+        safe_name = f"{base_name}_{timestamp}.png"
         stored_path = UPLOAD_DIR / safe_name
-        upload.save(stored_path)
+
+        try:
+            upload.stream.seek(0)
+            with Image.open(upload.stream) as source_image:
+                normalized = ImageOps.exif_transpose(source_image).convert("RGB")
+                normalized.save(stored_path, format="PNG", optimize=True)
+        except UnidentifiedImageError:
+            return jsonify(
+                {"error": "The selected file could not be processed. Please upload a screenshot image."}
+            ), 422
+        except Exception:
+            app.logger.exception("Image normalization failed")
+            return jsonify(
+                {"error": "The selected file could not be processed. Please upload a screenshot image."}
+            ), 422
 
         try:
             result = extract_customer_approval_data(
@@ -141,7 +151,11 @@ def create_app() -> Flask:
                 technician_name=technician_name,
                 install_date=datetime.now().strftime("%m/%d/%Y"),
             )
-            screenshot_filename = safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None
+
+            screenshot_filename = (
+                safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None
+            )
+
             if screenshot_filename is None:
                 stored_path.unlink(missing_ok=True)
 
