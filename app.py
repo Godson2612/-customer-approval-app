@@ -66,6 +66,11 @@ def create_app() -> Flask:
     _ensure_directories()
     _configure_logging(app)
 
+    app.logger.info("Storage root: %s", STORAGE_ROOT)
+    app.logger.info("PDF output dir: %s", PDF_DIR)
+    app.logger.info("PDF template path: %s", app.config["PDF_TEMPLATE_PATH"])
+    app.logger.info("PDF template exists: %s", Path(app.config["PDF_TEMPLATE_PATH"]).exists())
+
     repository = ApprovalRepository(app.config["DATABASE_URL"])
     repository.initialize()
     app.config["APPROVAL_REPOSITORY"] = repository
@@ -222,6 +227,7 @@ def create_app() -> Flask:
             customer_signature_bytes = decode_signature_data_url(fields["customer_signature"])
             technician_signature_bytes = decode_signature_data_url(fields["technician_signature"])
         except SignatureValidationError as error:
+            app.logger.warning("Signature validation failed: %s", error.public_message)
             return jsonify({"error": error.public_message}), 400
 
         try:
@@ -232,6 +238,11 @@ def create_app() -> Flask:
                 customer_signature_bytes=customer_signature_bytes,
                 technician_signature_bytes=technician_signature_bytes,
             )
+            app.logger.info(
+                "PDF generated successfully: filename=%s path=%s",
+                document["filename"],
+                document["path"],
+            )
         except PDFGenerationError as error:
             app.logger.warning("PDF generation failed: %s", error.public_message)
             return jsonify({"error": error.public_message}), 422
@@ -239,21 +250,26 @@ def create_app() -> Flask:
             app.logger.exception("Unhandled PDF generation failure")
             return jsonify({"error": "Unable to generate the approval document."}), 500
 
-        approval_id = repository.create_approval(
-            technician_name=fields["technician_name"].strip(),
-            job_number=fields["job_number"].strip(),
-            customer_name=fields["customer_name"].strip(),
-            service_address=fields["service_address"].strip(),
-            city_state_zip=fields["city_state_zip"].strip(),
-            phone_number=fields["phone_number"].strip(),
-            pdf_filename=document["filename"],
-            original_screenshot_filename=screenshot_filename,
-            extraction_json=json.dumps(extraction_snapshot, ensure_ascii=True),
-            status="generated",
-        )
+        try:
+            approval_id = repository.create_approval(
+                technician_name=fields["technician_name"].strip(),
+                job_number=fields["job_number"].strip(),
+                customer_name=fields["customer_name"].strip(),
+                service_address=fields["service_address"].strip(),
+                city_state_zip=fields["city_state_zip"].strip(),
+                phone_number=fields["phone_number"].strip(),
+                pdf_filename=document["filename"],
+                original_screenshot_filename=screenshot_filename,
+                extraction_json=json.dumps(extraction_snapshot, ensure_ascii=True),
+                status="generated",
+            )
+        except Exception:
+            app.logger.exception("Approval repository save failed")
+            return jsonify({"error": "PDF was generated, but saving the document record failed."}), 500
 
         if screenshot_filename and delete_screenshot_after and not app.config["KEEP_SCREENSHOTS"]:
-            (UPLOAD_DIR / screenshot_filename).unlink(missing_ok=True)
+            screenshot_path = UPLOAD_DIR / screenshot_filename
+            screenshot_path.unlink(missing_ok=True)
 
         return (
             jsonify(
@@ -279,6 +295,7 @@ def create_app() -> Flask:
 
         file_path = PDF_DIR / approval["pdf_filename"]
         if not file_path.exists():
+            app.logger.warning("Requested PDF does not exist on disk: %s", file_path)
             abort(404)
 
         return send_file(
@@ -337,7 +354,10 @@ def _ensure_directories() -> None:
 
 def _configure_logging(app: Flask) -> None:
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     app.logger.setLevel(log_level)
 
 
