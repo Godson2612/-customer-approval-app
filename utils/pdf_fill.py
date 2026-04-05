@@ -71,43 +71,47 @@ def generate_customer_approval_pdf(
         pdf.setSubject("Temporary Cable Acknowledgment and Installation Consent Form")
         pdf.setFont("Helvetica", 11)
 
-        # TOP SECTION
-        _draw_fitted_text(pdf, _clean_text(form_data.get("job_number", "")), x=210, y=669, max_width=148)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("service_address", "")), x=276, y=651, max_width=205)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("city_state_zip", "")), x=234, y=632, max_width=222)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("phone_number", "")), x=252, y=613, max_width=184)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("installation_date", "")), x=250, y=542, max_width=120)
-
-        # ACKNOWLEDGMENT NAME
-        _draw_fitted_text(pdf, _clean_text(form_data.get("customer_name", "")), x=131, y=472, max_width=220)
-
+        job_number = _clean_text(form_data.get("job_number", ""))
+        service_address = _clean_text(form_data.get("service_address", ""))
+        city_state_zip = _clean_text(form_data.get("city_state_zip", ""))
+        phone_number = _clean_text(form_data.get("phone_number", ""))
+        installation_date = _clean_text(form_data.get("installation_date", ""))
         customer_name = _clean_text(form_data.get("customer_name", ""))
         technician_name = _clean_text(form_data.get("technician_name", ""))
-        install_date = _clean_text(form_data.get("installation_date", ""))
 
-        # CUSTOMER BLOCK
-        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=212)
+        # Top section
+        _draw_fitted_text(pdf, job_number, x=211, y=669, max_width=146)
+        _draw_fitted_text(pdf, service_address, x=276, y=651, max_width=206)
+        _draw_fitted_text(pdf, city_state_zip, x=234, y=632, max_width=223)
+        _draw_fitted_text(pdf, phone_number, x=252, y=613, max_width=183)
+        _draw_fitted_text(pdf, installation_date, x=249, y=542, max_width=122)
+
+        # "I, ________" line
+        _draw_fitted_text(pdf, customer_name, x=132, y=472, max_width=214)
+
+        # Bottom customer section
+        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=210)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            x=214,
-            y=128,
-            box_width=205,
-            box_height=52,
+            x=266,
+            y=126,
+            box_width=175,
+            box_height=54,
         )
-        _draw_fitted_text(pdf, install_date, x=96, y=117, max_width=112)
+        _draw_fitted_text(pdf, installation_date, x=97, y=117, max_width=110)
 
-        # TECHNICIAN BLOCK
-        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=210)
+        # Bottom technician section
+        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=208)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            x=224,
-            y=45,
-            box_width=195,
-            box_height=52,
+            x=274,
+            y=43,
+            box_width=168,
+            box_height=54,
         )
-        _draw_fitted_text(pdf, install_date, x=96, y=34, max_width=112)
+        _draw_fitted_text(pdf, installation_date, x=97, y=34, max_width=110)
 
         pdf.save()
         overlay_buffer.seek(0)
