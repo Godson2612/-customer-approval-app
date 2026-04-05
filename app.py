@@ -177,32 +177,32 @@ def create_app() -> Flask:
         except ExtractionError as error:
             app.logger.warning("Image extraction failed: %s", error.public_message)
 
-            manual_payload = _build_manual_extract_payload(
+            payload = _build_manual_extract_payload(
                 technician_name=technician_name,
                 today=datetime.now().strftime("%m/%d/%Y"),
                 screenshot_filename=safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None,
                 warning=error.public_message,
             )
 
-            if manual_payload["meta"]["screenshot_filename"] is None:
+            if payload["meta"]["screenshot_filename"] is None:
                 stored_path.unlink(missing_ok=True)
 
-            return jsonify(manual_payload), 200
+            return jsonify(payload), 200
 
         except Exception:
             app.logger.exception("Unhandled extraction failure")
 
-            manual_payload = _build_manual_extract_payload(
+            payload = _build_manual_extract_payload(
                 technician_name=technician_name,
                 today=datetime.now().strftime("%m/%d/%Y"),
                 screenshot_filename=safe_name if (keep_screenshot or app.config["KEEP_SCREENSHOTS"]) else None,
                 warning="Automatic extraction failed, so please review and complete the form manually.",
             )
 
-            if manual_payload["meta"]["screenshot_filename"] is None:
+            if payload["meta"]["screenshot_filename"] is None:
                 stored_path.unlink(missing_ok=True)
 
-            return jsonify(manual_payload), 200
+            return jsonify(payload), 200
 
     @app.post("/api/customer-approval/generate")
     def generate_customer_approval() -> tuple[Any, int]:
