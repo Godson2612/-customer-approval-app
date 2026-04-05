@@ -71,43 +71,43 @@ def generate_customer_approval_pdf(
         pdf.setSubject("Temporary Cable Acknowledgment and Installation Consent Form")
         pdf.setFont("Helvetica", 11)
 
-        # TOP AREA
-        _draw_fitted_text(pdf, _clean_text(form_data.get("job_number", "")), x=208, y=669, max_width=150)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("service_address", "")), x=275, y=651, max_width=200)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("city_state_zip", "")), x=233, y=632, max_width=220)
-        _draw_fitted_text(pdf, _clean_text(form_data.get("phone_number", "")), x=251, y=613, max_width=185)
+        # TOP SECTION
+        _draw_fitted_text(pdf, _clean_text(form_data.get("job_number", "")), x=210, y=669, max_width=148)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("service_address", "")), x=276, y=651, max_width=205)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("city_state_zip", "")), x=234, y=632, max_width=222)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("phone_number", "")), x=252, y=613, max_width=184)
         _draw_fitted_text(pdf, _clean_text(form_data.get("installation_date", "")), x=250, y=542, max_width=120)
 
-        # ACKNOWLEDGMENT PARAGRAPH NAME
-        _draw_fitted_text(pdf, _clean_text(form_data.get("customer_name", "")), x=132, y=472, max_width=215)
+        # ACKNOWLEDGMENT NAME
+        _draw_fitted_text(pdf, _clean_text(form_data.get("customer_name", "")), x=131, y=472, max_width=220)
 
         customer_name = _clean_text(form_data.get("customer_name", ""))
         technician_name = _clean_text(form_data.get("technician_name", ""))
         install_date = _clean_text(form_data.get("installation_date", ""))
 
-        # CUSTOMER SECTION
-        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=210)
+        # CUSTOMER BLOCK
+        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=212)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            x=222,
-            y=132,
-            box_width=185,
-            box_height=30,
+            x=214,
+            y=128,
+            box_width=205,
+            box_height=52,
         )
-        _draw_fitted_text(pdf, install_date, x=96, y=117, max_width=110)
+        _draw_fitted_text(pdf, install_date, x=96, y=117, max_width=112)
 
-        # TECHNICIAN SECTION
-        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=208)
+        # TECHNICIAN BLOCK
+        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=210)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            x=232,
-            y=49,
-            box_width=175,
-            box_height=30,
+            x=224,
+            y=45,
+            box_width=195,
+            box_height=52,
         )
-        _draw_fitted_text(pdf, install_date, x=96, y=34, max_width=110)
+        _draw_fitted_text(pdf, install_date, x=96, y=34, max_width=112)
 
         pdf.save()
         overlay_buffer.seek(0)
@@ -204,8 +204,8 @@ def _normalize_signature_image(signature_bytes: bytes, role: str) -> bytes:
             if bbox:
                 normalized = normalized.crop(bbox)
 
-            max_width = 1600
-            max_height = 420
+            max_width = 2200
+            max_height = 700
             normalized.thumbnail((max_width, max_height))
 
             output = io.BytesIO()
