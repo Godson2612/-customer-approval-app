@@ -15,14 +15,12 @@
   --warning-soft: rgba(183, 121, 31, 0.12);
   --danger: #c83d4d;
   --danger-soft: rgba(200, 61, 77, 0.12);
-  --shadow-soft: 0 16px 40px rgba(15, 23, 42, 0.08);
   --shadow-card: 0 10px 24px rgba(15, 23, 42, 0.06);
   --radius-xl: 28px;
   --radius-lg: 22px;
-  --radius-md: 18px;
   --page-padding: 14px;
   --safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
-  --sticky-offset: calc(144px + var(--safe-bottom));
+  --sticky-offset: calc(148px + var(--safe-bottom));
 }
 
 * {
@@ -72,29 +70,19 @@ button {
 .screen {
   width: min(100%, 760px);
   margin: 0 auto;
-  padding: 18px var(--page-padding) var(--sticky-offset);
-}
-
-.home-screen {
-  min-height: 100vh;
-  display: grid;
-  gap: 18px;
-  padding-top: 28px;
-  padding-bottom: max(32px, var(--safe-bottom));
+  padding: 16px var(--page-padding) var(--sticky-offset);
 }
 
 .workflow-screen {
-  width: min(100%, 392px);
-  max-width: 392px;
+  width: min(100%, 372px);
+  max-width: 372px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .surface-card,
-.module-card,
-.group-card,
-.grouped-section,
 .workflow-card,
+.grouped-section,
 .helper-card {
   width: 100%;
   min-width: 0;
@@ -104,117 +92,12 @@ button {
   border-radius: var(--radius-xl);
 }
 
-.hero-card,
 .workflow-header,
 .progress-card,
 .workflow-card,
 .grouped-section,
-.module-card,
 .helper-card {
-  padding: 18px;
-}
-
-.hero-card {
-  display: grid;
-  gap: 16px;
-}
-
-.hero-badge,
-.module-kicker {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  color: var(--primary-strong);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.page-title,
-.section-heading h2,
-.section-heading h3,
-.module-card h2 {
-  margin: 0;
-}
-
-.page-title {
-  margin-top: 10px;
-  font-size: clamp(1.95rem, 7vw, 2.35rem);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-}
-
-.page-subtitle,
-.section-heading p,
-.module-card p,
-.loading-card p,
-.signature-head p,
-.helper-copy p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.hero-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(16, 32, 51, 0.04);
-  color: var(--muted-strong);
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.module-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-}
-
-.module-icon,
-.module-arrow,
-.back-button {
-  display: grid;
-  place-items: center;
-}
-
-.module-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.06));
-  color: var(--primary-strong);
-}
-
-.module-arrow,
-.back-button {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: rgba(16, 32, 51, 0.05);
-  color: var(--muted-strong);
-}
-
-.module-content {
-  min-width: 0;
-}
-
-.module-card h2 {
-  margin-top: 8px;
-  font-size: 1.12rem;
-  line-height: 1.2;
+  padding: 16px;
 }
 
 .workflow-header {
@@ -224,34 +107,68 @@ button {
   align-items: start;
 }
 
+.back-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(16, 32, 51, 0.05);
+  color: var(--muted-strong);
+  display: grid;
+  place-items: center;
+}
+
+.back-button svg {
+  width: 22px;
+  height: 22px;
+}
+
 .header-copy,
 .section-heading,
-.group-card,
-.signature-shell,
-.status-stack,
 .step-stage,
 .workflow-card {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
-.section-heading {
-  gap: 6px;
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(13, 110, 253, 0.08);
+  color: var(--primary-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+  width: fit-content;
 }
 
-.section-heading h2 {
-  font-size: 1.25rem;
-}
-
+.page-title,
+.section-heading h2,
 .section-heading h3 {
-  font-size: 1.02rem;
+  margin: 0;
+}
+
+.page-title {
+  font-size: clamp(1.95rem, 7vw, 2.35rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.page-subtitle,
+.section-heading p,
+.helper-copy p,
+.status-card p,
+.status-card ul {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .helper-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   border-color: rgba(13, 110, 253, 0.18);
   background: rgba(13, 110, 253, 0.04);
 }
@@ -262,16 +179,15 @@ button {
 }
 
 .helper-button {
-  width: auto;
-  min-width: 132px;
+  width: 100%;
 }
 
 .progress-steps {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 4px 0 2px;
-  margin: 16px 0 0;
+  gap: 8px;
+  padding: 2px 0 0;
+  margin: 8px 0 0;
   list-style: none;
 }
 
@@ -280,12 +196,12 @@ button {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 12px;
   border-radius: 999px;
   background: rgba(16, 32, 51, 0.05);
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -301,11 +217,12 @@ button {
 }
 
 .status-stack {
+  display: grid;
   gap: 10px;
 }
 
 .status-card {
-  border-radius: 20px;
+  border-radius: 18px;
   padding: 14px 16px;
   border: 1px solid var(--border);
   background: var(--card-strong);
@@ -317,13 +234,8 @@ button {
 }
 
 .status-card ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
-  color: var(--muted-strong);
-}
-
-.status-card p {
-  margin: 0;
+  margin-top: 8px;
+  padding-left: 18px;
   color: var(--muted-strong);
 }
 
@@ -343,8 +255,11 @@ button {
 }
 
 .group-card {
-  padding: 16px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
   background: rgba(244, 247, 251, 0.72);
+  border-radius: 20px;
 }
 
 .field-grid {
@@ -357,10 +272,6 @@ button {
   gap: 8px;
 }
 
-.field-span-2 {
-  grid-column: auto;
-}
-
 .field-label {
   color: var(--muted-strong);
   font-size: 0.92rem;
@@ -369,7 +280,7 @@ button {
 
 .field input {
   width: 100%;
-  height: 54px;
+  height: 52px;
   border: 1px solid var(--border-strong);
   border-radius: 18px;
   background: var(--card-strong);
@@ -377,7 +288,6 @@ button {
   font-size: 1rem;
   color: var(--text);
   outline: none;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .field input::placeholder {
@@ -401,18 +311,19 @@ button {
 }
 
 .upload-dropzone {
+  position: relative;
   display: grid;
   justify-items: center;
-  gap: 10px;
-  padding: 22px 16px;
+  gap: 8px;
+  padding: 18px 14px;
   border: 1.5px dashed rgba(13, 110, 253, 0.28);
-  border-radius: 22px;
+  border-radius: 20px;
   background: linear-gradient(180deg, rgba(13, 110, 253, 0.05), rgba(255, 255, 255, 0.9));
   text-align: center;
   overflow: hidden;
 }
 
-.upload-dropzone input {
+.upload-dropzone input[type="file"] {
   position: absolute;
   inset: 0;
   opacity: 0.001;
@@ -425,9 +336,9 @@ button {
 }
 
 .upload-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   background: rgba(13, 110, 253, 0.10);
@@ -435,28 +346,29 @@ button {
 }
 
 .upload-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 .upload-title {
   font-weight: 800;
-  font-size: 1.04rem;
+  font-size: 1rem;
 }
 
 .upload-copy,
 .upload-status {
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.35;
+  font-size: 0.92rem;
 }
 
 .image-preview {
   width: 100%;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 18px;
   border: 1px solid rgba(37, 99, 235, 0.12);
   background: rgba(255, 255, 255, 0.80);
-  padding: 10px;
+  padding: 8px;
 }
 
 .image-preview img {
@@ -464,9 +376,9 @@ button {
   width: 100%;
   max-width: 100%;
   height: auto;
-  max-height: 34dvh;
+  max-height: 30dvh;
   object-fit: contain;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #e9eef4;
 }
 
@@ -481,15 +393,15 @@ button {
   display: flex;
   gap: 14px;
   align-items: center;
-  padding: 16px;
+  padding: 14px;
   border-radius: 18px;
   background: rgba(13, 110, 253, 0.04);
   border: 1px solid rgba(13, 110, 253, 0.10);
 }
 
 .spinner {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   border: 3px solid rgba(13, 110, 253, 0.14);
   border-top-color: var(--primary);
@@ -514,7 +426,7 @@ button {
 
 .signature-card {
   padding: 10px;
-  border-radius: 20px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.86);
 }
@@ -523,14 +435,14 @@ button {
   display: block;
   width: 100%;
   height: 220px;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
   touch-action: none;
 }
 
 .primary-button,
 .secondary-button {
-  min-height: 54px;
+  min-height: 52px;
   padding: 0 18px;
   border-radius: 18px;
   display: inline-flex;
@@ -558,7 +470,7 @@ button {
 }
 
 .button-inline {
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 14px;
   border-radius: 14px;
   width: auto;
@@ -574,30 +486,25 @@ button {
   left: 50%;
   transform: translateX(-50%);
   bottom: max(10px, env(safe-area-inset-bottom));
-  width: min(calc(100% - 14px), 392px);
-  padding: 12px;
+  width: min(calc(100% - 14px), 372px);
+  padding: 10px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  align-items: center;
   z-index: 50;
   backdrop-filter: blur(18px);
   background: rgba(255, 255, 255, 0.96);
 }
 
-.sticky-copy {
-  min-width: 0;
-}
-
 .sticky-copy strong {
   display: block;
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 .sticky-copy p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.35;
 }
 
@@ -626,49 +533,8 @@ button {
   }
 
   .sticky-action-bar {
-    width: min(calc(100% - 24px), 430px);
-    grid-template-columns: minmax(0, 1fr) 210px;
-  }
-}
-
-@media (max-width: 480px) {
-  .screen {
-    padding-top: 14px;
-    padding-bottom: calc(154px + var(--safe-bottom));
-  }
-
-  .workflow-screen {
-    max-width: 392px;
-  }
-
-  .workflow-header,
-  .progress-card,
-  .workflow-card,
-  .grouped-section,
-  .helper-card {
-    padding: 16px;
-    border-radius: 20px;
-  }
-
-  .helper-card {
-    grid-template-columns: 1fr;
-  }
-
-  .helper-button {
-    width: 100%;
-  }
-
-  .page-title {
-    font-size: 2.1rem;
-  }
-
-  .progress-steps {
-    gap: 8px;
-  }
-
-  .progress-steps li {
-    font-size: 0.88rem;
-    min-height: 38px;
-    padding: 0 12px;
+    width: min(calc(100% - 24px), 420px);
+    grid-template-columns: minmax(0, 1fr) 200px;
+    align-items: center;
   }
 }

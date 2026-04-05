@@ -62,6 +62,9 @@ NOISE_WORDS = {
     "complete job",
     "resolution notes",
     "saved messages",
+    "customer signature",
+    "technician signature",
+    "generate",
 }
 
 STOP_WORDS = (
@@ -247,8 +250,8 @@ def _prepare_images(image: Image.Image) -> list[Image.Image]:
 
     gray = ImageOps.grayscale(resized)
     gray = ImageOps.autocontrast(gray)
-    gray = ImageEnhance.Contrast(gray).enhance(1.8)
-    gray = ImageEnhance.Sharpness(gray).enhance(1.8)
+    gray = ImageEnhance.Contrast(gray).enhance(1.9)
+    gray = ImageEnhance.Sharpness(gray).enhance(1.9)
     gray = gray.filter(ImageFilter.MedianFilter(size=3))
 
     inverted = ImageOps.invert(gray)
@@ -346,14 +349,12 @@ def _clean_lines(text: str) -> list[str]:
             continue
 
         lower = line.lower()
-
         if lower in NOISE_WORDS:
             continue
         if any(word in lower for word in ("resolution", "notes", "health")) and len(line) < 40:
             continue
         if len(line) == 1:
             continue
-
         if lower in seen:
             continue
 
@@ -391,42 +392,42 @@ def _find_all_phones(text: str) -> list[str]:
     raw = re.findall(r"(\+?1?[\s\-.]?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4})", text)
     seen: list[str] = []
     for item in raw:
-      phone = _format_phone(item)
-      if phone and phone not in seen:
-        seen.append(phone)
+        phone = _format_phone(item)
+        if phone and phone not in seen:
+            seen.append(phone)
     return seen
 
 
 def _format_phone(value: str) -> str:
     digits = re.sub(r"\D", "", value or "")
     if len(digits) == 11 and digits.startswith("1"):
-      digits = digits[1:]
+        digits = digits[1:]
     if len(digits) != 10:
-      return ""
+        return ""
     return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
 
 
 def _extract_city_state_zip(lines: list[str]) -> tuple[str, int]:
     for index, line in enumerate(lines):
-      if _looks_like_city_state_zip(line):
-        return line, index
+        if _looks_like_city_state_zip(line):
+            return line, index
     return "", -1
 
 
 def _extract_address(lines: list[str], city_index: int) -> str:
     if city_index > 0:
-      for offset in range(1, 3):
-        candidate_index = city_index - offset
-        if candidate_index < 0:
-          break
-        candidate = lines[candidate_index].rstrip(",")
-        if _looks_like_street(candidate):
-          return candidate
+        for offset in range(1, 3):
+            candidate_index = city_index - offset
+            if candidate_index < 0:
+                break
+            candidate = lines[candidate_index].rstrip(",")
+            if _looks_like_street(candidate):
+                return candidate
 
     for line in lines:
-      candidate = line.rstrip(",")
-      if _looks_like_street(candidate):
-        return candidate
+        candidate = line.rstrip(",")
+        if _looks_like_street(candidate):
+            return candidate
 
     return ""
 
@@ -435,83 +436,82 @@ def _extract_name(lines: list[str], service_address: str, city_index: int, job_n
     job_index = _find_job_index(lines, job_number)
 
     if job_index >= 0:
-      focus_lines = _collect_focus_lines(lines, start=job_index + 1)
-      for line in focus_lines:
-        if _looks_like_name(line):
-          return line
+        focus_lines = _collect_focus_lines(lines, start=job_index + 1)
+        for line in focus_lines:
+            if _looks_like_name(line):
+                return line
 
     if city_index > 1:
-      for offset in range(2, 5):
-        candidate_index = city_index - offset
-        if candidate_index < 0:
-          break
-        candidate = lines[candidate_index]
-        if _looks_like_name(candidate):
-          return candidate
-
-    if service_address:
-      for index, line in enumerate(lines):
-        if line.rstrip(",") == service_address and index > 0:
-          for offset in range(1, 4):
-            candidate_index = index - offset
+        for offset in range(2, 5):
+            candidate_index = city_index - offset
             if candidate_index < 0:
-              break
+                break
             candidate = lines[candidate_index]
             if _looks_like_name(candidate):
-              return candidate
+                return candidate
+
+    if service_address:
+        for index, line in enumerate(lines):
+            if line.rstrip(",") == service_address and index > 0:
+                for offset in range(1, 4):
+                    candidate_index = index - offset
+                    if candidate_index < 0:
+                        break
+                    candidate = lines[candidate_index]
+                    if _looks_like_name(candidate):
+                        return candidate
 
     for line in lines:
-      if _looks_like_name(line):
-        return line
+        if _looks_like_name(line):
+            return line
 
     return ""
 
 
 def _find_job_index(lines: list[str], job_number: str) -> int:
     for index, line in enumerate(lines):
-      lower = line.lower()
-      if "job #" in lower or lower.startswith("job "):
-        return index
-      if job_number and job_number in line:
-        return index
+        lower = line.lower()
+        if "job #" in lower or lower.startswith("job "):
+            return index
+        if job_number and job_number in line:
+            return index
     return -1
 
 
 def _collect_focus_lines(lines: list[str], start: int) -> list[str]:
     focused: list[str] = []
     for line in lines[start:]:
-      lower = line.lower()
-      if any(marker in lower for marker in STOP_WORDS):
-        break
-      focused.append(line)
+        lower = line.lower()
+        if any(marker in lower for marker in STOP_WORDS):
+            break
+        focused.append(line)
     return focused
 
 
 def _looks_like_name(value: str) -> bool:
     lower = value.lower()
-
     if lower in NOISE_WORDS:
-      return False
+        return False
     if any(word in lower for word in ("details", "health", "history", "resolution", "notes", "approval")):
-      return False
+        return False
     if "@" in value:
-      return False
+        return False
     if re.search(r"\d", value):
-      return False
+        return False
     if _looks_like_street(value):
-      return False
+        return False
     if _looks_like_city_state_zip(value):
-      return False
+        return False
 
     words = value.split()
     if not (2 <= len(words) <= 4):
-      return False
+        return False
     if len(value) > 42:
-      return False
+        return False
 
     alpha_words = [word for word in words if word[:1].isalpha()]
     if not alpha_words:
-      return False
+        return False
 
     return all(word[:1].isupper() for word in alpha_words)
 
@@ -522,10 +522,10 @@ def _looks_like_street(value: str) -> bool:
 
 def _looks_like_city_state_zip(value: str) -> bool:
     return bool(
-      re.search(
-        r"\b[A-Z][A-Za-z\s\.\-']+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b",
-        value,
-      )
+        re.search(
+            r"\b[A-Z][A-Za-z\s\.\-']+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b",
+            value,
+        )
     )
 
 
@@ -536,16 +536,16 @@ def _clean_value(value: str) -> str:
 def _clean_customer_name(value: str) -> str:
     value = _clean_value(value)
     if not value:
-      return ""
+        return ""
     if any(word in value.lower() for word in ("details", "health", "history", "resolution", "notes")):
-      return ""
+        return ""
     return value
 
 
 def _clean_service_address(value: str) -> str:
     value = _clean_value(value)
     if len(value) < 8:
-      return ""
+        return ""
     return value
 
 
