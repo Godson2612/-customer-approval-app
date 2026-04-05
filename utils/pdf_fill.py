@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -57,8 +58,18 @@ def generate_customer_approval_pdf(
     customer_signature_png = _normalize_signature_image(customer_signature_bytes, "customer")
     technician_signature_png = _normalize_signature_image(technician_signature_bytes, "technician")
 
+    raw_job_number = _clean_text(form_data.get("job_number", ""))
+    job_number = _last_6_digits(raw_job_number)
+
+    service_address = _clean_text(form_data.get("service_address", ""))
+    city_state_zip = _clean_text(form_data.get("city_state_zip", ""))
+    phone_number = _clean_text(form_data.get("phone_number", ""))
+    installation_date = _clean_text(form_data.get("installation_date", ""))
+    customer_name = _clean_text(form_data.get("customer_name", ""))
+    technician_name = _clean_text(form_data.get("technician_name", ""))
+
     file_stem = _safe_filename(
-        f"customer-approval-{form_data.get('job_number', 'document')}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        f"customer-approval-{job_number or 'document'}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     )
     output_path = output_dir / f"{file_stem}.pdf"
 
@@ -71,49 +82,41 @@ def generate_customer_approval_pdf(
         pdf.setSubject("Temporary Cable Acknowledgment and Installation Consent Form")
         pdf.setFont("Helvetica", 11)
 
-        job_number = _clean_text(form_data.get("job_number", ""))
-        service_address = _clean_text(form_data.get("service_address", ""))
-        city_state_zip = _clean_text(form_data.get("city_state_zip", ""))
-        phone_number = _clean_text(form_data.get("phone_number", ""))
-        installation_date = _clean_text(form_data.get("installation_date", ""))
-        customer_name = _clean_text(form_data.get("customer_name", ""))
-        technician_name = _clean_text(form_data.get("technician_name", ""))
-
         # TOP FIELDS
-        _draw_fitted_text(pdf, job_number, x=194, y=668, max_width=152)
-        _draw_fitted_text(pdf, service_address, x=203, y=650, max_width=275)
-        _draw_fitted_text(pdf, city_state_zip, x=177, y=631, max_width=300)
-        _draw_fitted_text(pdf, phone_number, x=186, y=612, max_width=250)
+        _draw_fitted_text(pdf, job_number, x=195, y=668, max_width=70)
+        _draw_fitted_text(pdf, service_address, x=182, y=650, max_width=205)
+        _draw_fitted_text(pdf, city_state_zip, x=166, y=631, max_width=210)
+        _draw_fitted_text(pdf, phone_number, x=172, y=612, max_width=150)
 
-        # Date of installation
-        _draw_fitted_text(pdf, installation_date, x=178, y=541, max_width=150)
+        # DATE OF INSTALLATION
+        _draw_fitted_text(pdf, installation_date, x=182, y=542, max_width=105)
 
-        # "I, ________"
-        _draw_fitted_text(pdf, customer_name, x=73, y=472, max_width=185)
+        # "I, ________, acknowledge"
+        _draw_fitted_text(pdf, customer_name, x=77, y=472, max_width=185)
 
         # CUSTOMER BLOCK
-        _draw_fitted_text(pdf, customer_name, x=135, y=155, max_width=210)
+        _draw_fitted_text(pdf, customer_name, x=138, y=156, max_width=175)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            x=286,
-            y=129,
-            box_width=150,
-            box_height=50,
+            x=305,
+            y=136,
+            box_width=118,
+            box_height=32,
         )
-        _draw_fitted_text(pdf, installation_date, x=99, y=111, max_width=118)
+        _draw_fitted_text(pdf, installation_date, x=98, y=119, max_width=85)
 
         # TECHNICIAN BLOCK
-        _draw_fitted_text(pdf, technician_name, x=139, y=72, max_width=206)
+        _draw_fitted_text(pdf, technician_name, x=142, y=74, max_width=170)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            x=286,
-            y=46,
-            box_width=150,
-            box_height=50,
+            x=305,
+            y=58,
+            box_width=118,
+            box_height=32,
         )
-        _draw_fitted_text(pdf, installation_date, x=99, y=28, max_width=118)
+        _draw_fitted_text(pdf, installation_date, x=98, y=37, max_width=85)
 
         pdf.save()
         overlay_buffer.seek(0)
@@ -135,6 +138,13 @@ def generate_customer_approval_pdf(
         "path": str(output_path),
         "bytes": final_bytes,
     }
+
+
+def _last_6_digits(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    if not digits:
+        return ""
+    return digits[-6:]
 
 
 def _draw_fitted_text(
@@ -278,4 +288,4 @@ def _safe_filename(value: str) -> str:
         character if character.isalnum() or character in {"-", "_"} else "-"
         for character in value
     ).strip("-")
-    return cleaned or "customer-approval"
+    return cleaned or "customer-approval"`
