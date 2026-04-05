@@ -79,39 +79,39 @@ def generate_customer_approval_pdf(
         customer_name = _clean_text(form_data.get("customer_name", ""))
         technician_name = _clean_text(form_data.get("technician_name", ""))
 
-        # Top section
+        # Top fields
         _draw_fitted_text(pdf, job_number, x=211, y=669, max_width=146)
-        _draw_fitted_text(pdf, service_address, x=276, y=651, max_width=206)
-        _draw_fitted_text(pdf, city_state_zip, x=234, y=632, max_width=223)
-        _draw_fitted_text(pdf, phone_number, x=252, y=613, max_width=183)
-        _draw_fitted_text(pdf, installation_date, x=249, y=542, max_width=122)
+        _draw_fitted_text(pdf, service_address, x=278, y=651, max_width=210)
+        _draw_fitted_text(pdf, city_state_zip, x=235, y=632, max_width=226)
+        _draw_fitted_text(pdf, phone_number, x=252, y=613, max_width=184)
+        _draw_fitted_text(pdf, installation_date, x=249, y=542, max_width=120)
 
-        # "I, ________" line
-        _draw_fitted_text(pdf, customer_name, x=132, y=472, max_width=214)
+        # "I, ______" line
+        _draw_fitted_text(pdf, customer_name, x=110, y=433, max_width=165)
 
-        # Bottom customer section
-        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=210)
+        # Customer section
+        _draw_fitted_text(pdf, customer_name, x=112, y=156, max_width=138)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            x=266,
-            y=126,
-            box_width=175,
-            box_height=54,
+            x=248,
+            y=131,
+            box_width=165,
+            box_height=58,
         )
-        _draw_fitted_text(pdf, installation_date, x=97, y=117, max_width=110)
+        _draw_fitted_text(pdf, installation_date, x=112, y=117, max_width=95)
 
-        # Bottom technician section
-        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=208)
+        # Technician section
+        _draw_fitted_text(pdf, technician_name, x=118, y=72, max_width=132)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            x=274,
-            y=43,
-            box_width=168,
-            box_height=54,
+            x=248,
+            y=47,
+            box_width=165,
+            box_height=58,
         )
-        _draw_fitted_text(pdf, installation_date, x=97, y=34, max_width=110)
+        _draw_fitted_text(pdf, installation_date, x=112, y=34, max_width=95)
 
         pdf.save()
         overlay_buffer.seek(0)
@@ -208,8 +208,8 @@ def _normalize_signature_image(signature_bytes: bytes, role: str) -> bytes:
             if bbox:
                 normalized = normalized.crop(bbox)
 
-            max_width = 2200
-            max_height = 700
+            max_width = 2400
+            max_height = 800
             normalized.thumbnail((max_width, max_height))
 
             output = io.BytesIO()
