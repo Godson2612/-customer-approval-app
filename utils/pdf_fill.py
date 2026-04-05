@@ -69,43 +69,45 @@ def generate_customer_approval_pdf(
         pdf.setTitle("Customer Approval")
         pdf.setAuthor("Customer Approval App")
         pdf.setSubject("Temporary Cable Acknowledgment and Installation Consent Form")
+        pdf.setFont("Helvetica", 11)
 
-        # ---- Top form fields ----
-        _draw_line_text(pdf, _clean_text(form_data.get("job_number", "")), x=205, y=672, max_width=155)
-        _draw_line_text(pdf, _clean_text(form_data.get("service_address", "")), x=272, y=653, max_width=175)
-        _draw_line_text(pdf, _clean_text(form_data.get("city_state_zip", "")), x=230, y=634, max_width=205)
-        _draw_line_text(pdf, _clean_text(form_data.get("phone_number", "")), x=248, y=615, max_width=188)
-        _draw_line_text(pdf, _clean_text(form_data.get("installation_date", "")), x=248, y=544, max_width=210)
+        # TOP AREA
+        _draw_fitted_text(pdf, _clean_text(form_data.get("job_number", "")), x=208, y=669, max_width=150)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("service_address", "")), x=275, y=651, max_width=200)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("city_state_zip", "")), x=233, y=632, max_width=220)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("phone_number", "")), x=251, y=613, max_width=185)
+        _draw_fitted_text(pdf, _clean_text(form_data.get("installation_date", "")), x=250, y=542, max_width=120)
 
-        # ---- Acknowledgment line ----
-        _draw_line_text(pdf, _clean_text(form_data.get("customer_name", "")), x=130, y=474, max_width=250)
+        # ACKNOWLEDGMENT PARAGRAPH NAME
+        _draw_fitted_text(pdf, _clean_text(form_data.get("customer_name", "")), x=132, y=472, max_width=215)
 
-        # ---- Bottom signature section ----
         customer_name = _clean_text(form_data.get("customer_name", ""))
         technician_name = _clean_text(form_data.get("technician_name", ""))
         install_date = _clean_text(form_data.get("installation_date", ""))
 
-        _draw_line_text(pdf, customer_name, x=183, y=157, max_width=205)
+        # CUSTOMER SECTION
+        _draw_fitted_text(pdf, customer_name, x=186, y=155, max_width=210)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            line_x=225,
-            line_y=138,
-            line_width=180,
-            image_height=22,
+            x=222,
+            y=132,
+            box_width=185,
+            box_height=30,
         )
-        _draw_line_text(pdf, install_date, x=95, y=119, max_width=185)
+        _draw_fitted_text(pdf, install_date, x=96, y=117, max_width=110)
 
-        _draw_line_text(pdf, technician_name, x=196, y=74, max_width=210)
+        # TECHNICIAN SECTION
+        _draw_fitted_text(pdf, technician_name, x=198, y=72, max_width=208)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            line_x=235,
-            line_y=55,
-            line_width=170,
-            image_height=22,
+            x=232,
+            y=49,
+            box_width=175,
+            box_height=30,
         )
-        _draw_line_text(pdf, install_date, x=95, y=36, max_width=185)
+        _draw_fitted_text(pdf, install_date, x=96, y=34, max_width=110)
 
         pdf.save()
         overlay_buffer.seek(0)
@@ -129,7 +131,7 @@ def generate_customer_approval_pdf(
     }
 
 
-def _draw_line_text(
+def _draw_fitted_text(
     pdf: canvas.Canvas,
     text: str,
     *,
@@ -150,7 +152,13 @@ def _draw_line_text(
 
     if font_size < min_size:
         font_size = min_size
-        cleaned = _ellipsize_text(pdf, cleaned, max_width=max_width, font_name=font_name, font_size=font_size)
+        cleaned = _ellipsize_text(
+            pdf,
+            cleaned,
+            max_width=max_width,
+            font_name=font_name,
+            font_size=font_size,
+        )
 
     pdf.setFont(font_name, font_size)
     pdf.drawString(x, y, cleaned)
@@ -160,19 +168,19 @@ def _draw_signature_on_line(
     pdf: canvas.Canvas,
     *,
     signature_bytes: bytes,
-    line_x: float,
-    line_y: float,
-    line_width: float,
-    image_height: float,
+    x: float,
+    y: float,
+    box_width: float,
+    box_height: float,
 ) -> None:
     try:
         image = ImageReader(io.BytesIO(signature_bytes))
         pdf.drawImage(
             image,
-            line_x,
-            line_y + 4,
-            width=line_width,
-            height=image_height,
+            x,
+            y,
+            width=box_width,
+            height=box_height,
             preserveAspectRatio=True,
             anchor="sw",
             mask="auto",
@@ -189,16 +197,15 @@ def _normalize_signature_image(signature_bytes: bytes, role: str) -> bytes:
         with Image.open(io.BytesIO(signature_bytes)) as source:
             normalized = ImageOps.exif_transpose(source).convert("RGBA")
 
-            # Make solid white background transparent if present
-            bg = Image.new("RGBA", normalized.size, (255, 255, 255, 255))
-            diff = ImageChops.difference(normalized, bg)
+            white_bg = Image.new("RGBA", normalized.size, (255, 255, 255, 255))
+            diff = ImageChops.difference(normalized, white_bg)
             bbox = diff.getbbox() or normalized.getbbox()
 
             if bbox:
                 normalized = normalized.crop(bbox)
 
-            max_width = 1200
-            max_height = 280
+            max_width = 1600
+            max_height = 420
             normalized.thumbnail((max_width, max_height))
 
             output = io.BytesIO()
