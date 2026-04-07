@@ -9,7 +9,7 @@
     data-today="{{ today }}"
   >
     <header class="workflow-header surface-card">
-      <a class="back-button" href="{{ url_for('customer_approval') }}" aria-label="Refresh page">
+      <a class="back-button" href="{{ url_for('home') }}" aria-label="Back to home">
         <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
           <path
             d="M15 5.75 8.75 12 15 18.25"
@@ -171,8 +171,8 @@
               <span class="field-note" data-confidence-for="city_state_zip"></span>
             </label>
             <label class="field">
-              <span class="field-label">Primary Phone Number</span>
-              <input id="phoneNumber" name="phone_number" type="tel" required placeholder="Enter phone number">
+              <span class="field-label">Phone Number</span>
+              <input id="phoneNumber" name="phone_number" type="tel" required placeholder="Primary phone number">
               <span class="field-note" data-confidence-for="phone_number"></span>
             </label>
             <label class="field">
@@ -251,7 +251,7 @@
           <div class="signature-head">
             <div>
               <h3>Technician Signature</h3>
-              <p>Sign to confirm the reviewed information and completion of the approval.</p>
+              <p>Sign clearly before generating the final PDF.</p>
             </div>
             <button id="clearTechnicianSignature" class="secondary-button button-inline" type="button">Clear</button>
           </div>
@@ -299,5 +299,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/app.js', v='20260404-openai-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js', v='20260407-home-epon-1') }}" defer></script>
 {% endblock %}

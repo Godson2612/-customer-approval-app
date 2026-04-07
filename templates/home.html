@@ -1,19 +1,83 @@
 {% extends "base.html" %}
 
-{% block title %}Customer Approval{% endblock %}
+{% block title %}Operations Toolkit{% endblock %}
 
 {% block body %}
-  <main class="screen home-screen">
+  <main
+    class="screen home-screen"
+    data-default-supervisor="{{ default_supervisor }}"
+    data-default-tech-number="{{ default_tech_number }}"
+    data-default-location="{{ default_location }}"
+  >
     <section class="surface-card hero-card">
       <div class="hero-badge">Operations Toolkit</div>
-      <h1 class="page-title">Customer Approval</h1>
+      <h1 class="page-title">Technician Workflows</h1>
       <p class="page-subtitle">
-        Capture customer approval, signatures, and export the final document.
+        Launch the right workflow fast, keep your EPON preferences saved, and stay production-ready.
       </p>
       <div class="hero-meta">
-        <div class="meta-chip">Mobile-first workflow</div>
-        <div class="meta-chip">Trusted document output</div>
+        <div class="meta-chip">Professional UI</div>
+        <div class="meta-chip">Mobile-first</div>
+        <div class="meta-chip">Fast repeat use</div>
       </div>
+    </section>
+
+    <section class="surface-card workflow-card preference-card">
+      <div class="section-heading">
+        <h2>Saved EPON Preferences</h2>
+        <p>These stay in the browser for this device and prefill the EPON workflow automatically.</p>
+      </div>
+
+      <form id="preferencesForm" class="group-card" autocomplete="on">
+        <div class="field-grid">
+          <label class="field field-span-2">
+            <span class="field-label">Supervisor</span>
+            <input
+              id="prefSupervisor"
+              name="supervisor"
+              type="text"
+              inputmode="text"
+              autocomplete="name"
+              value="{{ default_supervisor }}"
+              placeholder="Enter supervisor full name"
+            >
+            <span class="field-note">Saved locally for this user/device.</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Tech Number</span>
+            <input
+              id="prefTechNumber"
+              name="tech_number"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              value="{{ default_tech_number }}"
+              placeholder="Enter tech number"
+            >
+          </label>
+
+          <label class="field">
+            <span class="field-label">Default Location</span>
+            <select id="prefLocation" name="location">
+              <option value="">Select location</option>
+              <option value="Lake/Orlando">Lake/Orlando</option>
+              <option value="Jacksonville">Jacksonville</option>
+              <option value="Tallahassee">Tallahassee</option>
+              <option value="PC/Dothan">PC/Dothan</option>
+              <option value="West Palm Beach">West Palm Beach</option>
+              <option value="West Palm Beach North">West Palm Beach North</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="inline-actions">
+          <button id="savePreferencesButton" class="primary-button button-inline" type="submit">Save Preferences</button>
+          <button id="clearPreferencesButton" class="secondary-button button-inline" type="button">Clear</button>
+        </div>
+
+        <div id="preferencesStatus" class="status-stack" hidden></div>
+      </form>
     </section>
 
     <a class="module-card" href="{{ url_for('customer_approval') }}">
@@ -63,5 +127,49 @@
         </svg>
       </div>
     </a>
+
+    <a class="module-card is-alt" href="{{ url_for('epon_additional_billing') }}">
+      <div class="module-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path
+            d="M4.75 7A2.25 2.25 0 0 1 7 4.75h10A2.25 2.25 0 0 1 19.25 7v10A2.25 2.25 0 0 1 17 19.25H7A2.25 2.25 0 0 1 4.75 17V7Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+          />
+          <path
+            d="M8 8.75h8M8 12h8M8 15.25h4.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+          />
+        </svg>
+      </div>
+      <div class="module-content">
+        <div class="module-kicker">EPON Additional Billing</div>
+        <h2>Open EPON workflow</h2>
+        <p>Upload a new screenshot, review extracted account details, and submit the EPON billing form.</p>
+      </div>
+      <div class="module-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path
+            d="M9 6.75 14.25 12 9 17.25"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+          />
+        </svg>
+      </div>
+    </a>
   </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/app.js', v='20260407-home-epon-1') }}" defer></script>
 {% endblock %}

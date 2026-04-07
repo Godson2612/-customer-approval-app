@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}EPON Additional Billing{% endblock %}
+
+{% block body %}
+  <main
+    class="screen workflow-screen"
+    data-workflow="epon"
+    data-today="{{ today }}"
+    data-default-supervisor="{{ default_supervisor }}"
+    data-default-tech-number="{{ default_tech_number }}"
+    data-default-location="{{ default_location }}"
+  >
+    <header class="workflow-header surface-card">
+      <a class="back-button" href="{{ url_for('home') }}" aria-label="Back to home">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path
+            d="M15 5.75 8.75 12 15 18.25"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+          />
+        </svg>
+      </a>
+      <div class="header-copy">
+        <div class="hero-badge">EPON Workflow</div>
+        <h1 class="page-title">EPON Additional Billing</h1>
+        <p class="page-subtitle">Upload a new screenshot, review the extracted fields, and submit the EPON request.</p>
+      </div>
+    </header>
+
+    <section class="surface-card progress-card" aria-label="Workflow progress">
+      <div class="section-heading">
+        <h2>Progress</h2>
+        <p>Upload, review, and submit the billing request.</p>
+      </div>
+      <ol class="progress-steps">
+        <li class="is-active" data-progress-step="1">Upload</li>
+        <li data-progress-step="3">Review</li>
+        <li data-progress-step="4">Submit</li>
+        <li data-progress-step="5">Done</li>
+      </ol>
+    </section>
+
+    <section id="statusBanner" class="status-stack" aria-live="polite"></section>
+
+    <section class="step-stage">
+      <form id="extractForm" class="surface-card workflow-card is-active" data-step="1">
+        <div class="section-heading">
+          <h2>Upload Screenshot</h2>
+          <p>Use a fresh screenshot for this EPON request. Saved preferences will prefill supervisor and tech number.</p>
+        </div>
+
+        <div class="group-card">
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Tech Number</span>
+              <input
+                id="techNumberInitial"
+                name="tech_number"
+                type="text"
+                autocomplete="off"
+                inputmode="text"
+                value="{{ default_tech_number }}"
+                placeholder="Enter tech number"
+              >
+            </label>
+
+            <label class="field">
+              <span class="field-label">Location</span>
+              <select id="locationInitial" name="location">
+                <option value="">Select location</option>
+                <option value="Lake/Orlando">Lake/Orlando</option>
+                <option value="Jacksonville">Jacksonville</option>
+                <option value="Tallahassee">Tallahassee</option>
+                <option value="PC/Dothan">PC/Dothan</option>
+                <option value="West Palm Beach">West Palm Beach</option>
+                <option value="West Palm Beach North">West Palm Beach North</option>
+              </select>
+            </label>
+
+            <label class="field field-span-2">
+              <span class="field-label">Supervisor</span>
+              <input
+                id="supervisorInitial"
+                name="supervisor"
+                type="text"
+                autocomplete="name"
+                inputmode="text"
+                value="{{ default_supervisor }}"
+                placeholder="Enter supervisor full name"
+              >
+            </label>
+          </div>
+
+          <label class="upload-dropzone" for="screenshotInput">
+            <input
+              id="screenshotInput"
+              name="screenshot"
+              type="file"
+              accept="image/*"
+              required
+            >
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                <path
+                  d="M6.75 9.25A4.25 4.25 0 0 1 11 5a4.23 4.23 0 0 1 4.05 2.98 3.75 3.75 0 1 1 1.2 7.3H15.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M12 20V11.25m0 0-2.75 2.75M12 11.25 14.75 14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                />
+              </svg>
+            </span>
+            <span class="upload-title">Choose a screenshot</span>
+            <span class="upload-copy">Pick the EPON screenshot from Photos or Files.</span>
+            <span id="uploadStatus" class="upload-status">No file selected</span>
+          </label>
+
+          <div id="imagePreview" class="image-preview" hidden>
+            <img id="previewImage" alt="Selected screenshot preview">
+          </div>
+
+          <label class="toggle-row">
+            <input id="keepScreenshot" name="keep_screenshot" type="checkbox" value="true">
+            <span>Keep the original screenshot after submission</span>
+          </label>
+        </div>
+      </form>
+
+      <section id="loadingStep" class="surface-card workflow-card" data-step="2" hidden>
+        <div class="section-heading">
+          <h2>Extracting Information</h2>
+          <p>Please keep this screen open while the screenshot is processed.</p>
+        </div>
+        <div class="loading-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong>Preparing EPON draft</strong>
+            <p>Analyzing the screenshot and building the billing form.</p>
+          </div>
+        </div>
+      </section>
+
+      <form id="reviewForm" class="workflow-card" data-step="3" hidden>
+        <div class="section-heading surface-card">
+          <h2>Review Details</h2>
+          <p>Confirm the extracted information before submitting the EPON request.</p>
+        </div>
+
+        <div id="reviewWarnings" class="status-stack" hidden></div>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Request Details</h3>
+            <p>These fields are sent to the EPON billing form.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Billing Date</span>
+              <input id="billingDate" name="billing_date" type="text" value="{{ today }}" required placeholder="MM/DD/YYYY">
+              <span class="field-note" data-confidence-for="billing_date"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Location</span>
+              <select id="location" name="location" required>
+                <option value="">Select location</option>
+                <option value="Lake/Orlando">Lake/Orlando</option>
+                <option value="Jacksonville">Jacksonville</option>
+                <option value="Tallahassee">Tallahassee</option>
+                <option value="PC/Dothan">PC/Dothan</option>
+                <option value="West Palm Beach">West Palm Beach</option>
+                <option value="West Palm Beach North">West Palm Beach North</option>
+              </select>
+              <span class="field-note" data-confidence-for="location"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Tech Number</span>
+              <input id="techNumber" name="tech_number" type="text" required placeholder="Enter tech number">
+              <span class="field-note" data-confidence-for="tech_number"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Supervisor</span>
+              <input id="supervisor" name="supervisor" type="text" required placeholder="Enter supervisor full name">
+              <span class="field-note" data-confidence-for="supervisor"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Customer Details</h3>
+            <p>Review the account and address before sending.</p>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Customer Name</span>
+              <input id="customerName" name="customer_name" type="text" placeholder="Optional customer name">
+              <span class="field-note" data-confidence-for="customer_name"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Job Number</span>
+              <input id="jobNumber" name="job_number" type="text" placeholder="Optional">
+              <span class="field-note" data-confidence-for="job_number"></span>
+            </label>
+
+            <label class="field field-span-2">
+              <span class="field-label">Customer Address</span>
+              <input id="customerAddress" name="customer_address" type="text" required placeholder="Address Line 1">
+              <span class="field-note" data-confidence-for="customer_address"></span>
+            </label>
+
+            <label class="field field-span-2">
+              <span class="field-label">Address Line 2</span>
+              <input id="addressLine2" name="address_line_2" type="text" placeholder="Optional">
+            </label>
+
+            <label class="field">
+              <span class="field-label">City</span>
+              <input id="city" name="city" type="text" required placeholder="City">
+              <span class="field-note" data-confidence-for="city"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">State</span>
+              <input id="state" name="state" type="text" required placeholder="State">
+              <span class="field-note" data-confidence-for="state"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">ZIP</span>
+              <input id="postal" name="postal" type="text" required placeholder="ZIP code">
+              <span class="field-note" data-confidence-for="postal"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Account Number</span>
+              <input id="accountNumber" name="account_number" type="text" required placeholder="Enter account number">
+              <span class="field-note" data-confidence-for="account_number"></span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Primary Phone</span>
+              <input id="primaryPhone" name="primary_phone" type="tel" placeholder="Optional">
+              <span class="field-note" data-confidence-for="primary_phone"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="surface-card grouped-section">
+          <div class="section-heading">
+            <h3>Billing Type</h3>
+            <p>Select one billing type and enter the required quantity.</p>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Billing Type</span>
+              <select id="billingType" name="billing_type" required>
+                <option value="">Select type</option>
+                <option value="RR8">RR8 - Aerial EPON 300' or Greater</option>
+                <option value="RS3">RS3 - Wallfish</option>
+              </select>
+              <span class="field-note" data-confidence-for="billing_type"></span>
+            </label>
+
+            <label class="field" id="rr8QuantityField">
+              <span class="field-label">How many RR8's need to be added?</span>
+              <input id="rr8Quantity" name="rr8_quantity" type="number" min="1" step="1" placeholder="Enter quantity">
+              <span class="field-note" data-confidence-for="rr8_quantity"></span>
+            </label>
+
+            <label class="field" id="rs3QuantityField">
+              <span class="field-label">How many RS3's need to be added?</span>
+              <input id="rs3Quantity" name="rs3_quantity" type="number" min="1" step="1" placeholder="Enter quantity">
+              <span class="field-note" data-confidence-for="rs3_quantity"></span>
+            </label>
+          </div>
+
+          <div class="helper-card compact-helper">
+            <div class="helper-copy">
+              <strong>Attachment handling</strong>
+              <p>
+                This workflow uses the uploaded screenshot as the required support image for the selected billing type.
+              </p>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      <section id="submitStep" class="surface-card workflow-card" data-step="4" hidden>
+        <div class="section-heading">
+          <h2>Submitting Request</h2>
+          <p>Please wait while the EPON billing request is sent.</p>
+        </div>
+        <div class="loading-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong>Sending EPON form</strong>
+            <p>Submitting the reviewed details to the billing site.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="successStep" class="surface-card workflow-card" data-step="5" hidden>
+        <div class="section-heading">
+          <h2>Request Sent</h2>
+          <p id="successMessage">The EPON additional billing request was submitted successfully.</p>
+        </div>
+        <div class="success-actions">
+          <a id="openExternalButton" class="primary-button" href="https://techops.cuicable.com/index.php/epon-additional-billing/" target="_blank" rel="noreferrer">Open CUI Page</a>
+          <button id="restartButton" class="secondary-button" type="button">Start New EPON Request</button>
+        </div>
+      </section>
+    </section>
+
+    <aside class="sticky-action-bar surface-card">
+      <div class="sticky-copy">
+        <strong id="stickyTitle">Upload Screenshot</strong>
+        <p id="stickySubtitle">Select a screenshot to continue.</p>
+      </div>
+      <button id="stickyPrimaryButton" class="primary-button" type="button">Extract Information</button>
+    </aside>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/app.js', v='20260407-home-epon-1') }}" defer></script>
+{% endblock %}
