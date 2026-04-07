@@ -80,43 +80,42 @@ def generate_customer_approval_pdf(
         pdf.setTitle("Customer Approval")
         pdf.setAuthor("Customer Approval App")
         pdf.setSubject("Temporary Cable Acknowledgment and Installation Consent Form")
-        pdf.setFont("Helvetica", 11)
 
-        # TOP FIELDS
-        _draw_fitted_text(pdf, job_number, x=195, y=668, max_width=70)
-        _draw_fitted_text(pdf, service_address, x=182, y=650, max_width=205)
-        _draw_fitted_text(pdf, city_state_zip, x=166, y=631, max_width=210)
-        _draw_fitted_text(pdf, phone_number, x=172, y=612, max_width=150)
+        # Top section
+        _draw_fitted_text(pdf, job_number, x=184, y=668, max_width=78)
+        _draw_fitted_text(pdf, service_address, x=176, y=650, max_width=215)
+        _draw_fitted_text(pdf, city_state_zip, x=160, y=631, max_width=220)
+        _draw_fitted_text(pdf, phone_number, x=166, y=612, max_width=160)
 
-        # DATE OF INSTALLATION
-        _draw_fitted_text(pdf, installation_date, x=182, y=542, max_width=105)
+        # Date of installation line
+        _draw_fitted_text(pdf, installation_date, x=176, y=542, max_width=110)
 
-        # "I, ________, acknowledge"
-        _draw_fitted_text(pdf, customer_name, x=77, y=472, max_width=185)
+        # I, ________, acknowledge
+        _draw_fitted_text(pdf, customer_name, x=94, y=472, max_width=165)
 
-        # CUSTOMER BLOCK
-        _draw_fitted_text(pdf, customer_name, x=138, y=156, max_width=175)
+        # Bottom customer section
+        _draw_fitted_text(pdf, customer_name, x=137, y=156, max_width=178)
         _draw_signature_on_line(
             pdf,
             signature_bytes=customer_signature_png,
-            x=305,
+            x=286,
             y=136,
-            box_width=118,
-            box_height=32,
+            box_width=132,
+            box_height=28,
         )
-        _draw_fitted_text(pdf, installation_date, x=98, y=119, max_width=85)
+        _draw_fitted_text(pdf, installation_date, x=97, y=119, max_width=88)
 
-        # TECHNICIAN BLOCK
-        _draw_fitted_text(pdf, technician_name, x=142, y=74, max_width=170)
+        # Bottom technician section
+        _draw_fitted_text(pdf, technician_name, x=141, y=74, max_width=174)
         _draw_signature_on_line(
             pdf,
             signature_bytes=technician_signature_png,
-            x=305,
-            y=58,
-            box_width=118,
-            box_height=32,
+            x=286,
+            y=57,
+            box_width=132,
+            box_height=28,
         )
-        _draw_fitted_text(pdf, installation_date, x=98, y=37, max_width=85)
+        _draw_fitted_text(pdf, installation_date, x=97, y=37, max_width=88)
 
         pdf.save()
         overlay_buffer.seek(0)
@@ -126,7 +125,10 @@ def generate_customer_approval_pdf(
     except Exception as error:
         raise PDFGenerationError("Unable to draw the approval PDF.") from error
 
-    final_bytes = _merge_with_template(template_reader=template_reader, overlay_bytes=overlay_buffer.getvalue())
+    final_bytes = _merge_with_template(
+        template_reader=template_reader,
+        overlay_bytes=overlay_buffer.getvalue(),
+    )
 
     try:
         output_path.write_bytes(final_bytes)
@@ -288,4 +290,4 @@ def _safe_filename(value: str) -> str:
         character if character.isalnum() or character in {"-", "_"} else "-"
         for character in value
     ).strip("-")
-    return cleaned or "customer-approval"`
+    return cleaned or "customer-approval"
