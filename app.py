@@ -97,6 +97,9 @@ def create_app() -> Flask:
         if "csrf_token" not in session:
             session["csrf_token"] = _generate_csrf_token()
 
+        if request.path.startswith("/api/"):
+            return
+
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             token = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
             if not token or token != session["csrf_token"]:
